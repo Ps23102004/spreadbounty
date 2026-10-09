@@ -1,0 +1,22 @@
+{
+  "name": "spreadbounty",
+  "private": true,
+  "type": "module",
+  "description": "Verifiable maker-depth incentives for Kuru order books on Monad",
+  "scripts": {
+    "sb": "tsx src/cli/main.ts",
+    "test": "tsx test/core.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
+    "dotenv": "16.4.5",
+    "ethers": "5.7.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "tsx": "4.16.2",
+    "typescript": "5.5.3"
+  }
+}
