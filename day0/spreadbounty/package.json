@@ -1,0 +1,22 @@
+{
+  "name": "spreadbounty-day0",
+  "private": true,
+  "type": "module",
+  "description": "Day-0 go/no-go test for Spreadbounty on Kuru (Monad mainnet)",
+  "scripts": {
+    "check": "tsx src/day0.ts check",
+    "full": "tsx src/day0.ts full",
+    "selftest": "tsx test/selftest.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "16.4.5",
+    "ethers": "5.7.1"
+  },
+  "devDependencies": {
+    "@kuru-labs/kuru-sdk": "0.0.95",
+    "@types/node": "20.14.10",
+    "tsx": "4.16.2",
+    "typescript": "5.5.3"
+  }
+}
