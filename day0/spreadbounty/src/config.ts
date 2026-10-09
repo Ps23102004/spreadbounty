@@ -5,7 +5,10 @@ import "dotenv/config";
 export const CHAIN_ID = 143;
 export const KURU_ROUTER = "0xd651346d7c789536ebf06dc72ae3c8502cd695cc";
 export const KURU_MARGIN = "0x2A68ba1833cDf93fa9Da1EEbd7F46242aD8E90c5";
-export const KNOWN_OB_IMPL = "0xea2Cc8769Fb04Ff1893Ed11cf517b7F040C823CD";
+// Live on mainnet 2026-10-09 (EIP-1967 slot on AUSD/USDC and MON/USDC, = Router.orderBookImplementation).
+// Our event decoder replayed 7,332 MON/USDC logs against it with 8/8 orders matching s_orders.
+// kuru-sdk-py constants still list the previous one, 0xea2Cc8769Fb04Ff1893Ed11cf517b7F040C823CD.
+export const KNOWN_OB_IMPL = "0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0";
 export const AUSD_USDC_EMPTY = "0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc"; // fork study: enabled, empty
 export const AUSD_USDC_CSV = "0x699abc15308156e9a3ab89ec7387e9cfe1c86a3b"; // fork study: MarketStateError
 export const MON_USDC = "0x065C9d28E428A0db40191a54d33d5b7c71a9C394";

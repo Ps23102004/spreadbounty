@@ -101,7 +101,11 @@ async function main() {
 
   const vp = await ob.getVaultParams();
   const vaultAddr: string = vp[0];
-  report("1e AMM vault", "INFO", vaultAddr === NATIVE ? "no vault on this market" : `vault ${vaultAddr} params=${vp.slice(1).map(String).join(",")} (vault quotes can fill before ours)`);
+  // getVaultParams: (vault, bestBid 1e18, bidPartiallyFilled, bestAsk 1e18, askPartiallyFilled, bidOrderSize, askOrderSize, spread)
+  const vaultLive = vaultAddr !== NATIVE && !(ethers.BigNumber.from(vp[5]).isZero() && ethers.BigNumber.from(vp[6]).isZero());
+  report("1e AMM vault", vaultLive ? "WARN" : "INFO", vaultAddr === NATIVE
+    ? "no vault on this market"
+    : `vault ${vaultAddr}: bid ${ethers.utils.formatUnits(vp[1], 18)} x ${vp[5]}, ask ${ethers.utils.formatUnits(vp[3], 18)} x ${vp[6]}, spread ${vp[7]} -> ${vaultLive ? "QUOTING: it can fill before our order" : "not quoting (zero sizes)"}`);
 
   // ---------- 2. Implementation pinning ----------
   const implRaw = await provider.getStorageAt(market, IMPL_SLOT);
