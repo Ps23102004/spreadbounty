@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Day-0 go/no-go test for Spreadbounty on Kuru (Monad mainnet)",
   "scripts": {
+    "wallets": "tsx src/wallets.ts",
     "check": "tsx src/day0.ts check",
     "full": "tsx src/day0.ts full",
     "selftest": "tsx test/selftest.ts",

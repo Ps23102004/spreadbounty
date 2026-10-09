@@ -120,9 +120,11 @@ async function main() {
 
   // ---------- 3-5. Live maker/taker test (full mode only) ----------
   if (mode === "full") {
-    if (!cfg.makerKey || !cfg.takerKey) throw new Error("full mode needs MAKER_KEY and TAKER_KEY");
-    maker = new ethers.Wallet(cfg.makerKey, provider);
-    const taker = new ethers.Wallet(cfg.takerKey, provider);
+    const isKey = (k?: string) => !!k && /^0x[0-9a-fA-F]{64}$/.test(k.trim());
+    if (!isKey(cfg.makerKey) || !isKey(cfg.takerKey))
+      throw new Error("MAKER_KEY / TAKER_KEY in .env are missing or still placeholders: run `npm run wallets`, fund the printed addresses, then retry");
+    maker = new ethers.Wallet(cfg.makerKey!.trim(), provider);
+    const taker = new ethers.Wallet(cfg.takerKey!.trim(), provider);
     if (maker.address === taker.address) throw new Error("MAKER_KEY and TAKER_KEY must be different wallets");
 
     const sizeRaw = (() => {

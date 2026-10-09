@@ -16,7 +16,7 @@ The plan and the reasoning behind the test are in [`ideas/metropolis-opus-sonnet
 ```bash
 cd day0/spreadbounty
 npm install
-cp .env.example .env      # fill MAKER_KEY / TAKER_KEY with two THROWAWAY wallets
+npm run wallets           # creates .env with two fresh throwaway keys; prints ADDRESSES only. Never paste keys anywhere.
 npm run selftest          # offline, should print "9 checks passed"
 ```
 
