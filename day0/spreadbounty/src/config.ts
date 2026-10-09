@@ -20,7 +20,11 @@ export const cfg = {
   makerKey: process.env.MAKER_KEY,
   takerKey: process.env.TAKER_KEY,
   market: process.env.MARKET ?? AUSD_USDC_EMPTY,
-  refPrice: process.env.REF_PRICE ? Number(process.env.REF_PRICE) : null,
+  // Unset: 1.0 on the default AUSD/USDC market, live mid elsewhere. Set to "" to force the live mid.
+  refPrice:
+    process.env.REF_PRICE === undefined
+      ? (process.env.MARKET ?? AUSD_USDC_EMPTY).toLowerCase() === AUSD_USDC_EMPTY.toLowerCase() ? 1.0 : null
+      : process.env.REF_PRICE === "" ? null : Number(process.env.REF_PRICE),
   bandBps: num("BAND_BPS", 5),
   scoreBandBps: num("SCORE_BAND_BPS", 15),
   orderSize: num("ORDER_SIZE", 10),
