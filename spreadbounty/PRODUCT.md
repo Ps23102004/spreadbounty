@@ -54,11 +54,17 @@ Projects that want depth (stablecoin issuers like Agora, Kuru itself, the Monad 
 
 | Feature | What it does | Why it matters | Code |
 |---|---|---|---|
-| **Campaign Copilot** | A sponsor states a goal in plain English. Claude reads the live market, studies the book's recent history, backtests at least two parameter sets with *our production scorer*, and saves a campaign file with a sponsor brief. Every number comes from a tool. | Sponsors don't know what band, rest time or budget buys what. This turns "I want depth" into a published, testable campaign in about a minute. | `src/ai/copilot.ts` |
-| **Epoch Report** | After each epoch, a plain-language note to the sponsor: what the budget bought, how concentrated the rewards were, what to change next epoch. It may only use numbers `epochMetrics()` computed. | Sponsors renew when they can see their return on spend. | `src/ai/report.ts` |
+| **Campaign Copilot** | A sponsor states a goal in plain English. The model fills a five-field form (pair, band, budget, epoch, reference price). Code reads the market, replays recent order logs, backtests a grid of settings with *our production scorer* and picks one by a fixed rule. The model then writes the brief. | Sponsors don't know what band, rest time or budget buys what. This turns "I want depth" into a published, testable campaign in under a minute. | `src/ai/pipeline.ts` |
+| **Epoch Report** | After each epoch, a plain-language note to the sponsor: what the budget bought, how concentrated the rewards were, and what to change next epoch. It may only use numbers `epochMetrics()` computed. | Sponsors renew when they can see their return on spend. | `src/ai/report.ts` |
+| **Grounding guard** | Every number in model-written text must appear in the facts the code gave it. Otherwise the model gets one retry naming the bad numbers, then a template takes over. The UI shows which happened. | Small local models invent figures, and a sponsor must never read an invented coverage number. | `src/ai/grounding.ts` |
 | *Stretch:* agent makers | An MCP tool listing live campaigns and the $/hour each pays, so AI trading agents can discover them and join. | Puts AI on the supply side without trusting it with payouts. | not built |
 
-Both features use Claude Opus 5.5 with server-side refusal fallback (`fallbacks: "default"`).
+**Runs on any model, or none.** The model's jobs are sized for what a 3–8B model does reliably: fill a small form, and paraphrase numbers it is handed. The backends are:
+- Local models (Gemma, Qwen, Llama, MiniCPM…) through any OpenAI-compatible server: Ollama, LM Studio, llama.cpp, vLLM, or a DGX Spark box.
+- Claude (Opus 5.5 with server-side refusal fallback).
+- No model at all (rules and templates).
+
+The recommendation is identical across all three, because code makes it. `npm run test:ai` proves this against a mock weak model that rejects JSON-schema mode, wraps JSON in prose, invents numbers, and goes offline.
 
 ## Status (Oct 9)
 
@@ -67,7 +73,8 @@ Both features use Claude Opus 5.5 with server-side refusal fallback (`fallbacks:
 | Day-0 read-only checks on mainnet | ✅ market verified, tick 0.1 bps, replay 8/8, roots deterministic |
 | Day-0 live maker/taker test | ⏳ needs funded throwaway wallets (`day0/spreadbounty`) |
 | Core: replay, scoring, epoch files, verify, Merkle | ✅ built and tested offline (8 tests) |
-| CLI `sb market | copilot | epoch | verify | report` | ✅ built; RPC and AI calls not yet run live |
+| CLI `sb` (market, copilot, epoch, verify, report) | ✅ built; RPC and AI calls not yet run live |
+| AI harness: Claude / local OpenAI-compatible / off, grounding guard | ✅ built; 7 tests against a mock weak local model. Not yet run against a real Gemma/Qwen (model downloads are blocked in the build sandbox) |
+| Web app: overview, copilot, in-browser Verify with forged-payout demo, claim proof and calldata | ✅ built on the labelled demo dataset; screenshots in `docs/screenshots/` |
 | Claim contract | Plan: unmodified 1inch `CumulativeMerkleDrop`, deployed and funded by the sponsor |
-| Web app: campaign page, scorecard, in-browser Verify, claim button | ❌ next |
 | Maker bot (requote on drift) | ❌ next |

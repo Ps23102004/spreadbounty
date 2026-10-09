@@ -6,17 +6,31 @@
   "scripts": {
     "sb": "tsx src/cli/main.ts",
     "test": "tsx test/core.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p web",
+    "demo:gen": "tsx src/demo/generate.ts",
+    "test:ai": "tsx test/ai.test.ts",
+    "serve": "tsx src/server/index.ts",
+    "dev": "vite web",
+    "build:web": "vite build web",
+    "start": "npm run demo:gen && npm run build:web && npm run serve",
+    "mock:llm": "tsx test/mock-llm.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
     "dotenv": "16.4.5",
     "ethers": "5.7.1",
+    "motion": "13.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@types/node": "20.14.10",
+    "@types/node": "22.13.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
     "tsx": "4.16.2",
-    "typescript": "5.5.3"
+    "typescript": "5.5.3",
+    "vite": "8.3.1"
   }
 }

@@ -2,7 +2,7 @@
  * sb: Spreadbounty CLI
  *
  *   npm run sb -- market AUSD/USDC                       live market facts (read-only)
- *   npm run sb -- copilot "<goal>" [--sponsor 0x..]      AI: design + backtest a campaign -> out/campaign-*.json
+ *   npm run sb -- copilot "<goal>" [--agent]             AI: design + backtest a campaign -> campaign-*.json (any model, or none)
  *   npm run sb -- epoch out/campaign-X.json <n>          build epoch n from chain logs -> out/X/epoch-n.json (+ logs bundle)
  *   npm run sb -- verify out/X/epoch-n.json [--bundle]   recompute from chain (or the bundled logs) and compare
  *   npm run sb -- report out/X/epoch-n.json              AI: sponsor report from the verified numbers
@@ -28,12 +28,26 @@ async function main() {
       break;
     }
     case "copilot": {
-      const { runCopilot } = await import("../ai/copilot");
-      const goal = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--")).join(" ");
-      if (!goal) throw new Error('usage: sb copilot "<what the sponsor wants>"');
-      const r = await runCopilot(goal, { sponsor: flag("--sponsor") });
-      console.log(`\n${r.brief}\n`);
-      console.log(r.campaignFile ? `campaign file: ${r.campaignFile}` : "no campaign saved");
+      const goal = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--sponsor")).join(" ");
+      if (!goal) throw new Error('usage: sb copilot "<what the sponsor wants>" [--agent]');
+      if (args.includes("--agent")) {
+        // Claude-only tool-calling agent (live RPC); the default pipeline below works with any model or none
+        const { runCopilot } = await import("../ai/copilot");
+        const r = await runCopilot(goal, { sponsor: flag("--sponsor") });
+        console.log(`\n${r.brief}\n\ncampaign file: ${r.campaignFile ?? "none"}`);
+        break;
+      }
+      const { designCampaign } = await import("../ai/pipeline");
+      const { getLLM } = await import("../ai/llm");
+      const { getSource } = await import("../data/source");
+      const llm = getLLM();
+      const src = getSource();
+      console.error(`data: ${src.kind}${src.kind === "demo" ? " (synthetic)" : ""} | ai: ${llm ? `${llm.provider}:${llm.model}` : "off (rules + templates)"}`);
+      const r = await designCampaign(goal, src, llm, (s) => s.status === "done" && console.error(`  ✓ ${s.step}: ${s.detail ?? ""}`));
+      mkdirSync(src.dir, { recursive: true });
+      const path = `${src.dir}/campaign-${r.campaign.id}.json`;
+      writeFileSync(path, JSON.stringify({ ...r.campaign, rationale: r.brief }, null, 2));
+      console.log(`\n${r.brief}\n\nbrief: ${r.ai.briefBy} | campaign file: ${path}`);
       break;
     }
     case "epoch": {
@@ -71,13 +85,14 @@ async function main() {
     }
     case "report": {
       const { writeEpochReport } = await import("../ai/report");
+      const { getLLM } = await import("../ai/llm");
       const f = readJson<EpochFile>(args[0]!);
-      const prev = f.epoch > 0 && existsSync(epochPath(f.campaign, f.epoch - 1)) ? readJson<EpochFile>(epochPath(f.campaign, f.epoch - 1)) : null;
-      const r = await writeEpochReport(f, prev);
+      const prevPath = args[0]!.replace(/epoch-(\d+)\.json$/, (_, n) => `epoch-${Number(n) - 1}.json`);
+      const prev = f.epoch > 0 && existsSync(prevPath) ? readJson<EpochFile>(prevPath) : null;
+      const r = await writeEpochReport(f, prev, getLLM());
       const out = args[0]!.replace(".json", ".report.md");
-      writeFileSync(out, r.markdown);
-      console.log(r.markdown);
-      console.log(`\nwrote ${out}`);
+      writeFileSync(out, `${r.markdown}\n\nPayout root: \`${r.root}\`\n`);
+      console.log(`${r.markdown}\n\nwritten by: ${r.ai.writtenBy} | wrote ${out}`);
       break;
     }
     default:
