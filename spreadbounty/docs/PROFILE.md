@@ -44,6 +44,7 @@ Kuru, Monad's native order book, emits an event for every order, cancel and fill
 |---|---|
 | Code | https://github.com/Ps23102004/hackathons-fall-2026/tree/main/spreadbounty |
 | Write-up | https://github.com/Ps23102004/hackathons-fall-2026/blob/main/spreadbounty/WRITEUP.md |
+| Judge FAQ | https://github.com/Ps23102004/hackathons-fall-2026/blob/main/spreadbounty/FAQ.md |
 | Demo video | [unlisted video link] |
 | Deck | [deck share link; set sharing first] |
 | Live demo | None hosted. It runs locally with `cd spreadbounty && npm install && npm start`. Say so rather than leaving the field empty. |
