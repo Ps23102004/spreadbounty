@@ -2,7 +2,7 @@
 
 **Sponsors pay for order-book depth on Monad. Anyone can recompute who earned it.**
 
-Track 1 · Onchain Finance & Trading · built on Kuru · [Demo video] · [Deck] · Code: `spreadbounty/` in this repository
+Track 1 · Onchain Finance & Trading · built on Kuru · [Demo video] · [Deck] · Code: `spreadbounty/` in this repository · Judge FAQ: `spreadbounty/FAQ.md`
 
 > **Short version (for a one-paragraph field).** Spreadbounty lets anyone fund maker rewards on a Kuru order book, such as "keep AUSD/USDC two-sided within 15 bps for $50/day". Any maker earns by resting tight bids and asks, scored about once a minute at block-hash-chosen samples with Polymarket's two-sided formula. Every epoch's payouts are recomputable by anyone from public Kuru logs, in a browser, and makers claim from an unmodified 1inch Merkle distributor the sponsor owns. An AI copilot turns a sponsor's sentence into a backtested campaign on Claude or a local model, and is kept out of the money path. It ships with an open-source maker bot.
 
