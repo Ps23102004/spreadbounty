@@ -110,7 +110,7 @@ export function App() {
             {page === "design" && config && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
             {page === "makers" && <Makers campaign={campaign} />}
             {page === "verify" && <Verify campaign={campaign} config={config} />}
-            {page === "claim" && <Claim campaign={campaign} />}
+            {page === "claim" && <Claim campaign={campaign} config={config} />}
           </motion.div>
         </AnimatePresence>
       </main>

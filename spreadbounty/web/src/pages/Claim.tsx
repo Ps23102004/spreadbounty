@@ -1,12 +1,27 @@
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { leafHash, verifyProof } from "../../../src/core/score";
-import { api, fmt, makerName, type CampaignRow, type Claim as ClaimData, type EpochFile } from "../api";
+import { api, fmt, makerName, type CampaignRow, type Claim as ClaimData, type Config, type DropRecord, type EpochFile } from "../api";
 import { Copy, Reveal } from "../ui/bits";
 
-const DROP = new ethers.utils.Interface(["function claim(address account, uint256 cumulativeAmount, bytes32 expectedMerkleRoot, bytes32[] merkleProof)"]);
+const DROP = new ethers.utils.Interface([
+  "function claim(address account, uint256 cumulativeAmount, bytes32 expectedMerkleRoot, bytes32[] merkleProof)",
+  "function merkleRoot() view returns (bytes32)",
+  "function cumulativeClaimed(address) view returns (uint256)",
+  "error InvalidProof()",
+  "error NothingToClaim()",
+  "error MerkleRootWasUpdated()",
+]);
+const MONAD_RPC = "https://rpc.monad.xyz";
 
-export function Claim({ campaign }: { campaign: CampaignRow | null }) {
+interface OnChain { root: string; claimed: bigint }
+type Eip1193 = { request(a: { method: string; params?: unknown[] }): Promise<any> };
+
+export function Claim({ campaign, config }: { campaign: CampaignRow | null; config: Config | null }) {
+  const [drop, setDrop] = useState<DropRecord | null>(null);
+  const [chain, setChain] = useState<OnChain | null>(null);
+  const [chainErr, setChainErr] = useState<string | null>(null);
+  const [tx, setTx] = useState<{ hash?: string; error?: string; busy?: boolean } | null>(null);
   const [latest, setLatest] = useState<EpochFile | null>(null);
   const [addr, setAddr] = useState("");
   const [claim, setClaim] = useState<ClaimData | null>(null);
@@ -17,6 +32,8 @@ export function Claim({ campaign }: { campaign: CampaignRow | null }) {
     if (!campaign) return;
     setLatest(null);
     setClaim(null);
+    setDrop(null);
+    api.drop(campaign.id).then(setDrop);
     api.epochs(campaign.id).then(async (es) => {
       if (!es.length) return;
       const f = await api.epoch(campaign.id, es[es.length - 1]!.n);
@@ -24,6 +41,19 @@ export function Claim({ campaign }: { campaign: CampaignRow | null }) {
       if (f.cumulative[0]) setAddr(f.cumulative[0].account);
     });
   }, [campaign?.id]);
+
+  const rpc = drop ? drop.rpcUrl ?? config?.rpcUrl ?? MONAD_RPC : null;
+  useEffect(() => {
+    setChain(null);
+    setChainErr(null);
+    setTx(null);
+    if (!drop || !claim || !rpc) return;
+    const p = new ethers.providers.StaticJsonRpcProvider(rpc, drop.chainId);
+    const c = new ethers.Contract(drop.address, DROP, p);
+    Promise.all([c.merkleRoot(), c.cumulativeClaimed(claim.account)])
+      .then(([root, claimed]) => setChain({ root, claimed: BigInt(claimed.toString()) }))
+      .catch((e) => setChainErr(`Could not read the contract via ${rpc}: ${String(e?.reason ?? e?.message ?? e).slice(0, 120)}`));
+  }, [drop?.address, claim?.account, claim?.root, rpc]);
 
   if (!campaign) return <p className="muted">No campaign yet.</p>;
   const dec = 10 ** campaign.rewardDecimals;
@@ -44,6 +74,22 @@ export function Claim({ campaign }: { campaign: CampaignRow | null }) {
       setErr(String(e?.message ?? e));
     }
   };
+
+  const sendWithWallet = async () => {
+    const eth = (window as unknown as { ethereum?: Eip1193 }).ethereum;
+    if (!eth || !drop || !claim) return setTx({ error: "No browser wallet found. Copy the calldata into any wallet that can send raw transactions." });
+    setTx({ busy: true });
+    try {
+      const [from] = await eth.request({ method: "eth_requestAccounts" });
+      const want = "0x" + drop.chainId.toString(16);
+      if ((await eth.request({ method: "eth_chainId" })) !== want) await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: want }] });
+      const hash = await eth.request({ method: "eth_sendTransaction", params: [{ from, to: drop.address, data: calldata }] });
+      setTx({ hash });
+    } catch (e: any) {
+      setTx({ error: String(e?.message ?? e).slice(0, 200) });
+    }
+  };
+
   const calldata = claim ? DROP.encodeFunctionData("claim", [claim.account, claim.cumulativeAmount, claim.root, claim.proof]) : "";
 
   return (
@@ -95,7 +141,28 @@ export function Claim({ campaign }: { campaign: CampaignRow | null }) {
               <div className="code-block">{`claim(\n  ${claim.account},\n  ${claim.cumulativeAmount},\n  ${claim.root},\n  [${claim.proof.map((p) => `\n    ${p}`).join(",")}\n  ]\n)`}</div>
               <span className="label">Calldata</span>
               <div className="hash" style={{ maxHeight: 120, overflowY: "auto" }}>{calldata}</div>
-              <p className="note">No distributor is deployed for this {campaign.id.includes("demo") ? "demo " : ""}campaign yet, so there is nothing to send this to. Once the sponsor deploys and funds it, a wallet sends this call.</p>
+              {drop ? (
+                <div className="stack">
+                  <dl className="kv">
+                    <dt>Distributor</dt><dd className="mono">{drop.address}</dd>
+                    <dt>Chain</dt><dd>{drop.chainId === 143 ? "Monad (143)" : `test chain ${drop.chainId}`}</dd>
+                    {chain && <><dt>Live root</dt><dd>{chain.root === claim.root ? <span className="badge good">This epoch's root is live</span> : <span className="badge bad">On-chain root is a different epoch</span>}</dd></>}
+                    {chain && <><dt>Already claimed</dt><dd className="num">{fmt.usd(Number(chain.claimed) / dec)} {quote}</dd></>}
+                    {chain && <><dt>Claimable now</dt><dd className="num"><b>{fmt.usd(Math.max(0, Number(BigInt(claim.cumulativeAmount) - chain.claimed)) / dec)}</b> {quote}</dd></>}
+                  </dl>
+                  {chainErr && <p className="note bad">{chainErr}</p>}
+                  <div className="row">
+                    <button className="btn" onClick={sendWithWallet} disabled={tx?.busy || !chain || chain.root !== claim.root || BigInt(claim.cumulativeAmount) <= chain.claimed}>
+                      {tx?.busy ? "Waiting for wallet…" : chain && BigInt(claim.cumulativeAmount) <= chain.claimed ? "Nothing left to claim" : "Claim with wallet"}
+                    </button>
+                    <span className="muted" style={{ fontSize: "0.82rem" }}>Anyone can send this; the tokens always go to {makerName(claim.account)}.</span>
+                  </div>
+                  {tx?.hash && <p className="note">Sent: <span className="mono">{tx.hash}</span></p>}
+                  {tx?.error && <p className="note bad">{tx.error}</p>}
+                </div>
+              ) : (
+                <p className="note">No distributor is deployed for this {campaign.id.includes("demo") ? "demo " : ""}campaign yet, so there is nothing to send this to. The sponsor deploys and funds it with <code>npm run drop -- deploy</code>, then publishes each verified epoch root.</p>
+              )}
             </section>
           </div>
         </Reveal>

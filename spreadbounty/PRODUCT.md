@@ -76,5 +76,5 @@ The recommendation is identical across all three, because code makes it. `npm ru
 | CLI `sb` (market, copilot, epoch, verify, report) | ✅ built; RPC and AI calls not yet run live |
 | AI harness: Claude / local OpenAI-compatible / off, grounding guard | ✅ built; 7 tests against a mock weak local model. Not yet run against a real Gemma/Qwen (model downloads are blocked in the build sandbox) |
 | Web app: overview, copilot, in-browser Verify with forged-payout demo, claim proof and calldata | ✅ built on the labelled demo dataset; screenshots in `docs/screenshots/` |
-| Claim contract | Plan: unmodified 1inch `CumulativeMerkleDrop`, deployed and funded by the sponsor |
+| Claim contract | ✅ unmodified 1inch `CumulativeMerkleDrop` (vendored, sha256-checked, reproducible build), deploy/publish/fund/claim CLI with publish guards, wallet claim in the web app. 7 tests on a local EVM; full flow run end to end on a local chain. **Not deployed to Monad yet** |
 | Maker bot (requote on drift) | ✅ strategy, backtest and paper/live runner, 10 tests. Live path tested on a fake RPC serving demo data; **no mainnet order sent yet** (RPC blocked in the build sandbox) |

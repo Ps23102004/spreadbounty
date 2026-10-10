@@ -16,7 +16,11 @@
     "mock:llm": "tsx test/mock-llm.ts",
     "bot": "tsx src/bot/main.ts",
     "test:bot": "tsx test/bot.test.ts",
-    "fakechain": "tsx test/fake-chain.ts"
+    "fakechain": "tsx test/fake-chain.ts",
+    "drop:compile": "tsx src/drop/compile.ts",
+    "drop": "tsx src/drop/main.ts",
+    "test:drop": "tsx test/drop.test.ts",
+    "localchain": "tsx test/local-chain.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
@@ -28,10 +32,14 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@1inch/solidity-utils": "6.9.16",
+    "@openzeppelin/contracts": "5.4.0",
     "@types/node": "22.13.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "ganache": "7.9.2",
+    "solc": "0.8.23",
     "tsx": "4.16.2",
     "typescript": "5.5.3",
     "vite": "8.3.1"

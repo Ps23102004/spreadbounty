@@ -197,6 +197,10 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
         return { n, fromBlock: e.fromBlock, toBlock: e.toBlock, root: e.root, metrics: epochMetrics(e), makersSeen: makersSeen(id, n, e), samples: e.samples.map((s) => ({ block: s.block, bidDepth: s.bidDepth, askDepth: s.askDepth, scored: s.scored })) };
       }));
     }
+    if (parts[3] === "drop" && parts.length === 4 && req.method === "GET") {
+      const f = `${src.dir}/${id}/drop.json`;
+      return existsSync(f) ? send(res, 200, readJson(f)) : send(res, 404, { error: "No claim contract deployed for this campaign." });
+    }
     if (parts[3] === "bot-sim" && parts.length === 4 && req.method === "GET") {
       const n = Number(url.searchParams.get("epoch") ?? 0);
       const size = Number(url.searchParams.get("size") ?? 2000);

@@ -44,6 +44,7 @@ export interface BotSim {
   epoch: number; sizePerSide: number; base: string; quote: string; budget: number;
   results: { strategy: string; payout: number; sharePct: number; txs: number; places: number; cancels: number; fills: number; inventory: number; restingTwoSidedPct: number; depthWith: number; depthWithout: number; coverageWith: number; coverageWithout: number }[];
 }
+export interface DropRecord { campaign: string; chainId: number; address: string; token: string; owner: string; deployTx: string; deployBlock: number; rpcUrl: string | null; published: { epoch: number; root: string; tx: string }[] }
 export interface Health { ok: boolean; provider: string; model?: string; latencyMs?: number; reply?: string; reason?: string }
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
@@ -65,6 +66,7 @@ export const api = {
   claim: (id: string, n: number, account: string) => j<Claim>(`/api/campaigns/${id}/epochs/${n}/claim/${account}`),
   report: (id: string, n: number) => j<Report>(`/api/campaigns/${id}/epochs/${n}/report`, { method: "POST" }),
   botSim: (id: string, n: number, size: number) => j<BotSim>(`/api/campaigns/${id}/bot-sim?epoch=${n}&size=${size}`),
+  drop: (id: string) => fetch(`/api/campaigns/${id}/drop`).then((r) => (r.ok ? (r.json() as Promise<DropRecord>) : null)).catch(() => null),
   publish: (campaign: Campaign, rationale: string) => j<{ id: string; path: string }>("/api/campaigns", post({ campaign, rationale })),
 
   /** The copilot streams one JSON object per line: steps as they happen, then the result. */

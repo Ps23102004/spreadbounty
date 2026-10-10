@@ -62,7 +62,7 @@ AI_PROVIDER=local LOCAL_LLM_URL=http://localhost:11999/v1 LOCAL_LLM_MODEL=mock n
 | **Design a campaign** | You type a sentence and steps stream in: intent, market, history replay, backtest, brief. You get a recommended setting, all candidates (chart or table), the brief with its grounding badge, and **Publish**. |
 | **Make markets** | Backtests the maker bot against a naive timer requoter and a lazy edge quoter on any closed epoch, scored by the real epoch builder. It shows the payout per epoch, the depth the quotes add, and copy-paste commands to run the bot. |
 | **Verify** | Your browser downloads the logs and re-runs the production scorer for every epoch, then compares Merkle roots. **Try a forged payout** tampers with the file and re-roots it consistently, and the check still catches it. |
-| **Claim** | Look up any maker. The page shows the cumulative amount and the Merkle proof (re-checked in the browser) plus the exact `claim(...)` calldata for a 1inch `CumulativeMerkleDrop`. |
+| **Claim** | Look up any maker. The page shows the cumulative amount, the Merkle proof (re-checked in the browser) and the exact `claim(...)` calldata. Once a distributor is deployed, it also reads the live root and the amount already claimed from the chain, and offers **Claim with wallet**. |
 
 Light and dark themes are supported. All motion uses `motion` and respects reduced-motion settings.
 
@@ -93,12 +93,45 @@ The fill model is simple and gas is not counted.
 
 `npm run fakechain` serves the demo dataset as a read-only Monad JSON-RPC on :8546, so `RPC_URL=http://127.0.0.1:8546 npm run bot -- plan|run ...` exercises the live code path offline.
 
+## Claim contract
+
+Payouts go through the **unmodified 1inch `CumulativeMerkleDrop`**, vendored in `contracts/vendor/` with upstream URLs and sha256 hashes. It is compiled with upstream's exact settings (solc 0.8.23, optimizer at 1,000,000 runs, shanghai), and the build is committed in `contracts/build/`. The sponsor deploys and funds it, and posts each epoch's root.
+
+```bash
+npm run drop -- deploy  out/campaign-<id>.json [--owner 0xMultisig] --yes   # signer becomes owner; --owner hands it over
+npm run drop -- publish out/<id>/epoch-3.json --fund --yes                   # recompute epochs 0..3, top up, setMerkleRoot
+npm run drop -- status  out/campaign-<id>.json                               # code check, live root, owed vs balance, claimed
+npm run drop -- claim   out/<id>/epoch-3.json --all --yes                    # push payouts (anyone pays gas, tokens go to makers)
+```
+
+`publish` refuses to post a root in any of these cases:
+- it doesn't recompute from the order logs (the whole chain from epoch 0);
+- the on-chain root isn't one of this campaign's earlier roots;
+- the signer isn't the owner;
+- the deployed code differs from the committed build;
+- the contract can't pay every maker in full (unless `--fund` is given).
+
+Every command is a dry run without `--yes`. Only chain 143 is accepted unless `--allow-chain <id>` is passed. Writes need `SPONSOR_KEY` in `.env` (claims also accept `CLAIM_KEY`).
+
+**Trust model.** The owner can set any root, so whoever owns the contract can redirect its balance. Keep the sponsor (or the sponsor's multisig) as owner, and fund one epoch at a time so the balance at risk stays small. Anyone can check a published root on the Verify page or with `sb verify` before claiming.
+
+Try the whole flow locally, without touching Monad:
+
+```bash
+npm run localchain     # ganache (chain 1337) + a 6-decimal test token; prints its address
+export RPC_URL=http://127.0.0.1:8545 SPONSOR_KEY=<ganache deterministic dev key 0>
+npm run drop -- deploy  out/demo/campaign-ausd-usdc-demo.json --allow-chain 1337 --token <tUSDC> --yes
+npm run drop -- publish out/demo/ausd-usdc-demo/epoch-2.json --allow-chain 1337 --fund --yes
+npm start              # Claim page: "Claim with wallet" (point a wallet at the local chain)
+```
+
 ## CLI
 
 ```bash
 npm test                                   # 8 core tests: replay, scoring, epoch build/verify, tamper detection, analytics
 npm run test:ai                            # 7 AI-harness tests against a mock weak local model (needs npm run demo:gen)
 npm run test:bot                           # 10 maker-bot tests: strategy rules, backtests, live runner on the fake RPC
+npm run test:drop                          # 7 claim-contract tests on an in-process EVM: provenance, reproducible build, on-chain claims, publish guards
 npm run typecheck
 
 npm run sb -- market AUSD/USDC             # live market facts (Monad RPC; no keys)
@@ -128,6 +161,10 @@ npm run sb -- report out/<id>/epoch-0.json          # sponsor report from the ve
   - `sim.ts`: backtest scored by `buildEpoch`.
   - `live.ts`: Kuru runner.
   - `main.ts`: the `bot` CLI.
+- `src/drop/`: claim contract tooling.
+  - `compile.ts`: reproducible build.
+  - `drop.ts`: deploy, publish checks, fund, claim.
+  - `main.ts`: the `drop` CLI.
 - `src/data/source.ts`: live RPC or the demo dataset. `src/demo/generate.ts` builds the demo dataset.
 - `src/server/index.ts`: the JSON API plus the built web app (node:http, no framework).
 - `web/`: Vite + React 19 + motion. The pages import `../src/core` directly, so in-browser verification runs the same code.
