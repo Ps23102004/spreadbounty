@@ -77,4 +77,4 @@ The recommendation is identical across all three, because code makes it. `npm ru
 | AI harness: Claude / local OpenAI-compatible / off, grounding guard | ✅ built; 7 tests against a mock weak local model. Not yet run against a real Gemma/Qwen (model downloads are blocked in the build sandbox) |
 | Web app: overview, copilot, in-browser Verify with forged-payout demo, claim proof and calldata | ✅ built on the labelled demo dataset; screenshots in `docs/screenshots/` |
 | Claim contract | Plan: unmodified 1inch `CumulativeMerkleDrop`, deployed and funded by the sponsor |
-| Maker bot (requote on drift) | ❌ next |
+| Maker bot (requote on drift) | ✅ strategy, backtest and paper/live runner, 10 tests. Live path tested on a fake RPC serving demo data; **no mainnet order sent yet** (RPC blocked in the build sandbox) |

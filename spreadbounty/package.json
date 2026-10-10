@@ -13,7 +13,10 @@
     "dev": "vite web",
     "build:web": "vite build web",
     "start": "npm run demo:gen && npm run build:web && npm run serve",
-    "mock:llm": "tsx test/mock-llm.ts"
+    "mock:llm": "tsx test/mock-llm.ts",
+    "bot": "tsx src/bot/main.ts",
+    "test:bot": "tsx test/bot.test.ts",
+    "fakechain": "tsx test/fake-chain.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",

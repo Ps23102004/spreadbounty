@@ -157,7 +157,7 @@ export function Ladder({ bids, asks, refPrice, bandBps, unit, decimals }: { bids
 }
 
 // ---------------- horizontal bars for comparing candidates on one measure ----------------
-export function Bars({ rows, max, unit, highlight }: { rows: { key: string; label: ReactNode; value: number | null }[]; max?: number; unit: string; highlight?: string }) {
+export function Bars({ rows, max, unit, highlight, decimals }: { rows: { key: string; label: ReactNode; value: number | null }[]; max?: number; unit: string; highlight?: string; decimals?: number }) {
   const reduce = useReducedMotion();
   const top = max ?? Math.max(1, ...rows.map((r) => r.value ?? 0));
   return (
@@ -173,7 +173,7 @@ export function Bars({ rows, max, unit, highlight }: { rows: { key: string; labe
               transition={{ duration: 0.6, delay: reduce ? 0 : i * 0.05 }}
             />
           </span>
-          <span className="num" style={{ textAlign: "right" }}>{r.value === null ? "–" : `${fmt.n(r.value, r.value < 100 && !Number.isInteger(r.value) ? 1 : 0)}${unit}`}</span>
+          <span className="num" style={{ textAlign: "right" }}>{r.value === null ? "–" : `${fmt.n(r.value, decimals ?? (r.value < 100 && !Number.isInteger(r.value) ? 1 : 0))}${unit}`}</span>
         </div>
       ))}
     </div>

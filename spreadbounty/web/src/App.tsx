@@ -3,12 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type CampaignRow, type Config, type Health } from "./api";
 import { Claim } from "./pages/Claim";
 import { Design } from "./pages/Design";
+import { Makers } from "./pages/Makers";
 import { Overview } from "./pages/Overview";
 import { Verify } from "./pages/Verify";
 
 const PAGES = [
   { id: "overview", label: "Overview" },
   { id: "design", label: "Design a campaign" },
+  { id: "makers", label: "Make markets" },
   { id: "verify", label: "Verify" },
   { id: "claim", label: "Claim" },
 ] as const;
@@ -106,6 +108,7 @@ export function App() {
           <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.22 }} style={{ display: "grid", gap: 28, minWidth: 0 }}>
             {page === "overview" && <Overview campaign={campaign} config={config} onDesign={() => go("design")} />}
             {page === "design" && config && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
+            {page === "makers" && <Makers campaign={campaign} />}
             {page === "verify" && <Verify campaign={campaign} config={config} />}
             {page === "claim" && <Claim campaign={campaign} />}
           </motion.div>

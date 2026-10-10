@@ -40,6 +40,10 @@ export interface DesignResult {
 export type Step = { step: string; status: "running" | "done"; detail?: string };
 export interface Report { markdown: string; root: string; ai: AiMeta & { writtenBy: "model" | "template" } }
 export interface Claim { account: string; cumulativeAmount: string; root: string; proof: string[]; verifies: boolean }
+export interface BotSim {
+  epoch: number; sizePerSide: number; base: string; quote: string; budget: number;
+  results: { strategy: string; payout: number; sharePct: number; txs: number; places: number; cancels: number; fills: number; inventory: number; restingTwoSidedPct: number; depthWith: number; depthWithout: number; coverageWith: number; coverageWithout: number }[];
+}
 export interface Health { ok: boolean; provider: string; model?: string; latencyMs?: number; reply?: string; reason?: string }
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
@@ -60,6 +64,7 @@ export const api = {
   logs: (id: string, n: number) => j<RawLog[]>(`/api/campaigns/${id}/epochs/${n}/logs`),
   claim: (id: string, n: number, account: string) => j<Claim>(`/api/campaigns/${id}/epochs/${n}/claim/${account}`),
   report: (id: string, n: number) => j<Report>(`/api/campaigns/${id}/epochs/${n}/report`, { method: "POST" }),
+  botSim: (id: string, n: number, size: number) => j<BotSim>(`/api/campaigns/${id}/bot-sim?epoch=${n}&size=${size}`),
   publish: (campaign: Campaign, rationale: string) => j<{ id: string; path: string }>("/api/campaigns", post({ campaign, rationale })),
 
   /** The copilot streams one JSON object per line: steps as they happen, then the result. */

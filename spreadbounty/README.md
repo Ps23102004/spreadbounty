@@ -60,16 +60,45 @@ AI_PROVIDER=local LOCAL_LLM_URL=http://localhost:11999/v1 LOCAL_LLM_MODEL=mock n
 |---|---|
 | **Overview** | Coverage, depth, cost per $1k and makers paid per epoch, with deltas. Also shows depth inside the band over time, the live book ladder with the reward band shaded, who earned what (including makers who quoted but didn't qualify), and the AI epoch report with its provenance. |
 | **Design a campaign** | You type a sentence and steps stream in: intent, market, history replay, backtest, brief. You get a recommended setting, all candidates (chart or table), the brief with its grounding badge, and **Publish**. |
+| **Make markets** | Backtests the maker bot against a naive timer requoter and a lazy edge quoter on any closed epoch, scored by the real epoch builder. It shows the payout per epoch, the depth the quotes add, and copy-paste commands to run the bot. |
 | **Verify** | Your browser downloads the logs and re-runs the production scorer for every epoch, then compares Merkle roots. **Try a forged payout** tampers with the file and re-roots it consistently, and the check still catches it. |
 | **Claim** | Look up any maker. The page shows the cumulative amount and the Merkle proof (re-checked in the browser) plus the exact `claim(...)` calldata for a 1inch `CumulativeMerkleDrop`. |
 
 Light and dark themes are supported. All motion uses `motion` and respects reduced-motion settings.
+
+## Maker bot
+
+The bot is a reference maker for any campaign. It quotes both sides about 35% into the band. It leaves resting orders alone, because every requote restarts the minimum-rest clock, and requotes only when an order drifts toward the band edge or away from its target. Orders are post-only. There is an inventory cap per side, a peg guard that pulls all quotes when a stablecoin's book leaves its reference, and Ctrl-C cancels everything. There is no AI in the loop.
+
+```bash
+npm run bot -- sim  out/demo/campaign-ausd-usdc-demo.json --epoch 2 --size 2000   # backtest: bot vs naive vs lazy
+npm run bot -- plan out/campaign-<id>.json --size 100                             # one read-only tick on mainnet
+npm run bot -- run  out/campaign-<id>.json --size 100                             # paper loop: decides, sends nothing
+npm run bot -- deposit out/campaign-<id>.json --base 100 --quote 100 --yes        # fund the Kuru margin account
+npm run bot -- run  out/campaign-<id>.json --size 100 --live --yes                # live
+npm run bot -- cancel-all out/campaign-<id>.json --yes
+```
+
+Live trading needs `BOT_KEY` in `.env`. It must be a **fresh throwaway wallet** holding only what you can lose. Orders worth more than `BOT_MAX_ORDER_QUOTE` (default 100 in quote units) are refused. Every transaction is simulated with `eth_call` before it is sent. The bot refuses to quote if the market's implementation differs from the campaign file. It never deposits on its own.
+
+On demo epoch 2 with 2,000 AUSD per side:
+
+| Strategy | Payout | Transactions |
+|---|---|---|
+| Bot | 2.28 USDC | 2 |
+| Requote every 40 blocks | 1.58 USDC | 860 |
+| Quote at the band edge | 0.07 USDC | 2 |
+
+The fill model is simple and gas is not counted.
+
+`npm run fakechain` serves the demo dataset as a read-only Monad JSON-RPC on :8546, so `RPC_URL=http://127.0.0.1:8546 npm run bot -- plan|run ...` exercises the live code path offline.
 
 ## CLI
 
 ```bash
 npm test                                   # 8 core tests: replay, scoring, epoch build/verify, tamper detection, analytics
 npm run test:ai                            # 7 AI-harness tests against a mock weak local model (needs npm run demo:gen)
+npm run test:bot                           # 10 maker-bot tests: strategy rules, backtests, live runner on the fake RPC
 npm run typecheck
 
 npm run sb -- market AUSD/USDC             # live market facts (Monad RPC; no keys)
@@ -94,6 +123,11 @@ npm run sb -- report out/<id>/epoch-0.json          # sponsor report from the ve
   - `report.ts`: epoch reports.
   - `grounding.ts`: the number checker.
   - `copilot.ts`: the Claude tool-runner agent.
+- `src/bot/`:
+  - `strategy.ts`: pure `decide()`.
+  - `sim.ts`: backtest scored by `buildEpoch`.
+  - `live.ts`: Kuru runner.
+  - `main.ts`: the `bot` CLI.
 - `src/data/source.ts`: live RPC or the demo dataset. `src/demo/generate.ts` builds the demo dataset.
 - `src/server/index.ts`: the JSON API plus the built web app (node:http, no framework).
 - `web/`: Vite + React 19 + motion. The pages import `../src/core` directly, so in-browser verification runs the same code.

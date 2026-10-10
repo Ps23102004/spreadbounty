@@ -17,6 +17,7 @@ import { aiConfig, getLLM } from "../ai/llm";
 import { designCampaign, PAIRS } from "../ai/pipeline";
 import { writeEpochReport } from "../ai/report";
 import { getSource, recentHistory } from "../data/source";
+import { compareStrategies } from "../bot/sim";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const WEB = "web/dist";
@@ -94,6 +95,32 @@ async function bookSnapshot(pair: string, hours: number) {
   };
 }
 
+/** Backtest the maker bot vs two naive strategies on one closed epoch (cached: it replays the whole epoch 3 times). */
+const simCache = new Map<string, unknown>();
+async function botSim(id: string, n: number, size: number) {
+  const key = `${id}:${n}:${size}`;
+  if (simCache.has(key)) return simCache.get(key);
+  const c = readJson<Campaign>(campaignPath(id));
+  const baseline = existsSync(epochPath(id, n)) ? readJson<EpochFile>(epochPath(id, n)) : undefined;
+  const rs = await compareStrategies(src, c, n, size, size * 10, baseline);
+  const out = {
+    epoch: n,
+    sizePerSide: size,
+    base: c.pair.split("/")[0],
+    quote: c.pair.split("/")[1],
+    budget: rs[0]!.withBot.budgetRewardTokens,
+    results: rs.map((r) => ({
+      strategy: r.strategy, payout: r.payout, sharePct: r.sharePct, txs: r.txs, places: r.places, cancels: r.cancels, fills: r.fills,
+      inventory: r.inventory, restingTwoSidedPct: r.restingTwoSidedPct,
+      depthWith: r.withBot.avgTwoSidedDepthQuote, depthWithout: r.withoutBot.avgTwoSidedDepthQuote,
+      coverageWith: r.withBot.twoSidedCoveragePct, coverageWithout: r.withoutBot.twoSidedCoveragePct,
+    })),
+  };
+  if (simCache.size > 50) simCache.clear();
+  simCache.set(key, out);
+  return out;
+}
+
 const CopilotIn = z.object({ goal: z.string().min(3).max(1000) });
 const PublishIn = z.object({ campaign: z.record(z.string(), z.unknown()), rationale: z.string().max(4000).optional() });
 
@@ -169,6 +196,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
         const e = readJson<EpochFile>(epochPath(id, n));
         return { n, fromBlock: e.fromBlock, toBlock: e.toBlock, root: e.root, metrics: epochMetrics(e), makersSeen: makersSeen(id, n, e), samples: e.samples.map((s) => ({ block: s.block, bidDepth: s.bidDepth, askDepth: s.askDepth, scored: s.scored })) };
       }));
+    }
+    if (parts[3] === "bot-sim" && parts.length === 4 && req.method === "GET") {
+      const n = Number(url.searchParams.get("epoch") ?? 0);
+      const size = Number(url.searchParams.get("size") ?? 2000);
+      if (!Number.isInteger(n) || n < 0 || !existsSync(epochPath(id, n))) return send(res, 400, { error: "Pick a closed epoch." });
+      if (!(size > 0 && size <= 1e9)) return send(res, 400, { error: "Size per side must be a positive number." });
+      return send(res, 200, await botSim(id, n, size));
     }
     const n = Number(parts[4]);
     if (parts[3] === "epochs" && Number.isInteger(n) && existsSync(epochPath(id, n))) {
