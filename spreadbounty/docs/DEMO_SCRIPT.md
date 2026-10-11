@@ -16,7 +16,7 @@ This script works **today**. Once the live Day-0 test has run, swap in the upgra
 ## Prep (about 20 minutes, the day before)
 
 ```bash
-cd ~/hackathons-fall-2026/spreadbounty && git pull && npm install
+git clone https://github.com/Ps23102004/spreadbounty && cd spreadbounty/spreadbounty && npm install
 ollama pull gemma3:4b                      # optional: so the AI chip reads "Local · gemma3:4b"
 ```
 

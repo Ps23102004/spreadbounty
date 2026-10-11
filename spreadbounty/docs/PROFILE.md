@@ -32,7 +32,7 @@ Spreadbounty lets anyone fund maker rewards on a Kuru order book, such as "keep 
 
 ## Full description
 
-Paste `WRITEUP.md`, or link it if the field takes a URL: https://github.com/Ps23102004/hackathons-fall-2026/blob/main/spreadbounty/WRITEUP.md
+Paste `WRITEUP.md`, or link it if the field takes a URL: https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/WRITEUP.md
 
 ## How it uses Monad
 
@@ -42,9 +42,9 @@ Kuru, Monad's native order book, emits an event for every order, cancel and fill
 
 | Link | Value |
 |---|---|
-| Code | https://github.com/Ps23102004/hackathons-fall-2026/tree/main/spreadbounty |
-| Write-up | https://github.com/Ps23102004/hackathons-fall-2026/blob/main/spreadbounty/WRITEUP.md |
-| Judge FAQ | https://github.com/Ps23102004/hackathons-fall-2026/blob/main/spreadbounty/FAQ.md |
+| Code | https://github.com/Ps23102004/spreadbounty |
+| Write-up | https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/WRITEUP.md |
+| Judge FAQ | https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/FAQ.md |
 | Demo video | [unlisted video link] |
 | Deck | [deck share link; set sharing first] |
 | Live demo | None hosted. It runs locally with `cd spreadbounty && npm install && npm start`. Say so rather than leaving the field empty. |
