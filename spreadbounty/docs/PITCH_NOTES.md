@@ -51,7 +51,7 @@ Use the speaker notes as written. The budget, by slide, is 10 / 20 / 20 / 15 / 2
 | Number | Where it comes from |
 |---|---|
 | 0 resting orders on AUSD/USDC | Our read-only check, Oct 9 |
-| 8 of 8 orders matched contract state, 7,332-log replay | Our Day-0 check |
+| 8 of 8 orders matched contract state in a 6,602-log MON/USDC replay (read-only, Oct 11) | `day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json` |
 | 20-block minimum rest ≈ 6 s; one sample per ~minute | Campaign rules; ~300 ms blocks |
 | 2.28 vs 1.58 vs 0.07 USDC; 2 vs 860 txs | Bot backtest, **synthetic** demo epoch 2 |
 | 32 automated tests; 4 makers claimed exact totals on the real 1inch contract | Test suite (local EVM) |

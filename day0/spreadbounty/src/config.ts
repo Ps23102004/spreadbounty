@@ -6,7 +6,7 @@ export const CHAIN_ID = 143;
 export const KURU_ROUTER = "0xd651346d7c789536ebf06dc72ae3c8502cd695cc";
 export const KURU_MARGIN = "0x2A68ba1833cDf93fa9Da1EEbd7F46242aD8E90c5";
 // Live on mainnet 2026-10-09 (EIP-1967 slot on AUSD/USDC and MON/USDC, = Router.orderBookImplementation).
-// Our event decoder replayed 7,332 MON/USDC logs against it with 8/8 orders matching s_orders.
+// Our event decoder replayed 6,602 MON/USDC logs against it with 8/8 orders matching s_orders (reports/2026-10-11-check-MON-USDC.json).
 // kuru-sdk-py constants still list the previous one, 0xea2Cc8769Fb04Ff1893Ed11cf517b7F040C823CD.
 export const KNOWN_OB_IMPL = "0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0";
 export const AUSD_USDC_EMPTY = "0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc"; // fork study: enabled, empty

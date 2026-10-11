@@ -6,8 +6,8 @@
 
 Kuru is Monad's on-chain order book. Every order, cancel and fill is a public event, and fees are 0/0 on the markets we checked. Many books are thin or empty:
 
-- The AUSD/USDC book (`0x8cF49e…`) is an official Kuru market. Today it has **no resting orders** and its AMM vault isn't quoting (Day-0 check, Oct 9). A $500 AUSD→USDC swap on Kuru simply fails.
-- Majors like MON/USDC have a few professional makers. Large size still slips: the fork study found $1K fills but $5K fails on cbBTC and WETH.
+- The AUSD/USDC book (`0x8cF49e…`) is an official Kuru market. Today it has **no resting orders** and its AMM vault isn't quoting (Day-0 read-only check, Oct 11). A $500 AUSD→USDC swap on Kuru fails (third-party fork study, not our own run).
+- Majors like MON/USDC have a few professional makers. Large size still slips: a third-party fork study (not our run) found $1K fills but $5K fails on cbBTC and WETH.
 
 Projects that want depth (stablecoin issuers like Agora, Kuru itself, the Monad Foundation) pay for it in two ways today:
 
@@ -30,8 +30,8 @@ Projects that want depth (stablecoin issuers like Agora, Kuru itself, the Monad 
 ## Why us, why now, why Monad
 
 **Why now:**
-- **No market-making program in this ecosystem is checkable.** Kuru's ~$1.2M incentive program has reportedly ended (laya-trader). Monad's AUSD incentives (~$75K/week via Pendle, per news snippets) buy supply, not order-book depth.
-- **No neighbour does what we do:**
+- **We found no market-making program in this ecosystem whose payouts a third party can recompute.** A third-party retrospective (zakanysa/laya-trader) says Kuru's ~$1.2M incentive program 'reportedly' ended; we have not verified this. Monad's AUSD incentives (~$75K/week via Pendle, per news snippets) buy supply, not order-book depth.
+- **Neighbours (none we found computes verifiable, sampled maker-depth payouts on a CLOB; Polymarket's sponsor rewards are the closest in spirit):**
 
   | Neighbour | What it does | What it lacks |
   |---|---|---|
@@ -40,7 +40,7 @@ Projects that want depth (stablecoin issuers like Agora, Kuru itself, the Monad 
   | Merkl | Pays incentives | Has no order-book campaign type |
 
 **Why Monad:**
-- **Kuru's order book is Monad-native**, and every order event names its owner, so the scorer can see who quoted what. 8/8 orders matched contract state on a 7,332-log mainnet replay.
+- **Kuru's order book is Monad-native**, and every order event names its owner, so the scorer can see who quoted what. 8/8 live orders matched contract state in a 6,602-log MON/USDC mainnet replay (read-only, Oct 11; `day0/spreadbounty/reports/`).
 - **Cheap blocks every ~300 ms** make once-a-minute sampling meaningful.
 - **Honest limit:** the mechanism could port to other on-chain order books (Phoenix on Solana, Clober on Base). The pitch says so.
 
@@ -66,11 +66,11 @@ Projects that want depth (stablecoin issuers like Agora, Kuru itself, the Monad 
 
 The recommendation is identical across all three, because code makes it. `npm run test:ai` proves this against a mock weak model that rejects JSON-schema mode, wraps JSON in prose, invents numbers, and goes offline.
 
-## Status (Oct 9)
+## Status (Oct 11)
 
 | Piece | State |
 |---|---|
-| Day-0 read-only checks on mainnet | ✅ market verified, tick 0.1 bps, replay 8/8, roots deterministic |
+| Day-0 read-only checks on mainnet (Oct 11, `day0/spreadbounty/reports/`) | ✅ AUSD/USDC: verified market, tick 0.1 bps, book empty (0 logs, replay vacuous). MON/USDC: verified market, tick 0.372 bps, 6,602-log replay 8/8, roots deterministic |
 | Day-0 live maker/taker test | ⏳ needs funded throwaway wallets (`day0/spreadbounty`) |
 | Core: replay, scoring, epoch files, verify, Merkle | ✅ built and tested offline (8 tests) |
 | CLI `sb` (market, copilot, epoch, verify, report) | ✅ built; RPC and AI calls not yet run live |

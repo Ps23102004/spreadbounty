@@ -255,7 +255,7 @@ async function main() {
   const pct = sample.length ? (100 * match) / sample.length : 0;
   report("5 replay vs s_orders", sample.length === 0 ? "WARN" : pct >= 95 ? "PASS" : "FAIL",
     `${logsA.length} book logs in blocks ${from}..${head}; ${live.size} live orders replayed; ${match}/${sample.length} match s_orders at ${head} (${pct.toFixed(1)}%)` +
-    (sample.length === 0 ? " -- empty book: run `npm run check` with MARKET=MON/USDC to test replay against real makers" : "") +
+    (sample.length === 0 ? " -- empty book: run `npm run check` with MARKET=0x065C9d28E428A0db40191a54d33d5b7c71a9C394 (MON/USDC address) to test replay against real makers" : "") +
     (mismatches.length ? `\n         ${mismatches.slice(0, 5).join("\n         ")}` : ""));
 
   // ---------- 6. Deterministic scoring root from two independent fetches ----------
@@ -305,7 +305,7 @@ function finish(samples?: unknown) {
   const verdict =
     mode === "check"
       ? fails.length ? `NO-GO on read-only checks (${fails.map((f) => f.step).join("; ")})` : "read-only checks pass -> run `npm run full -- --yes`"
-      : fails.length ? `NO-GO (${fails.map((f) => f.step).join("; ")}) -> retry on MARKET=MON/USDC, else build Paylink` : "GO: build Spreadbounty";
+      : fails.length ? `NO-GO (${fails.map((f) => f.step).join("; ")}) -> retry with MARKET=0x065C9d28E428A0db40191a54d33d5b7c71a9C394 (MON/USDC)` : "GO: build Spreadbounty";
   console.log(`\nVERDICT: ${verdict}`);
   const file = `day0-report-${mode}-${Date.now()}.json`;
   writeFileSync(file, JSON.stringify({ mode, market, config: { ...cfg, makerKey: undefined, takerKey: undefined }, results, txs, samples, verdict }, null, 2));

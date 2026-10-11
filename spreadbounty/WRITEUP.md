@@ -48,7 +48,7 @@ Neither lets a sponsor pay an open crowd of makers for depth they can verify.
   - `npm run test:ai`: 7 tests against a mock weak local model that invents numbers and wraps JSON in prose.
   - `npm run test:bot`: 10 tests, including the live runner against a fake RPC serving recorded data.
   - `npm run test:drop`: 7 tests on an in-process EVM. Four makers claimed exactly their totals from the real 1inch contract using our proofs; forged roots, unknown roots and non-owner publishes are refused.
-- **Mainnet replay.** In a 7,332-log replay of Kuru's MON/USDC market, 8 of 8 checked orders matched the contract's own `s_orders` state.
+- **Mainnet replay (read-only).** In a replay of 6,602 Kuru MON/USDC book logs (blocks 112,568,360–112,570,360, Oct 11 2026, read-only), 8 of 8 live orders matched the contract's own `s_orders` state, and two independent replays produced the same payout root; report: `day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json`. The AUSD/USDC book was empty at the time (0 logs), so that market's replay check was vacuous.
 - **Maker bot backtest** on the labelled synthetic dataset (2,000 AUSD per side, 10 USDC per epoch):
 
   | Strategy | Payout | Transactions |
@@ -58,7 +58,7 @@ Neither lets a sponsor pay an open crowd of makers for depth they can verify.
   | Quote at the band edge | 0.07 USDC | 2 |
 
 - **Run it yourself:** `cd spreadbounty && npm install && npm start`, then open http://localhost:8787. The demo dataset is labelled "Demo data (synthetic)" on every page. `DATA_SOURCE=live` reads Monad mainnet.
-- **Build window.** All code was written between October 8 and 10, 2026, and the git history is public.
+- **Build window.** All code was written between October 8 and 11, 2026 (inside the Sep 1–Oct 13 window); the public repo keeps the full commit history.
 
 ## Prior art, and what is new
 
@@ -78,7 +78,7 @@ A 3–5% take on campaign budgets, the same order of magnitude as incentive plat
 ## Status and limits
 
 - **Built and tested:** everything above.
-- **Not yet done on mainnet:**
+- **Not yet done on mainnet (stated plainly, not rounded up):**
   - live maker and taker orders through our bot;
   - a closed live epoch verified from the RPC;
   - the distributor deployed on Monad;

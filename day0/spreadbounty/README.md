@@ -9,7 +9,7 @@ This test decides whether to build Spreadbounty. It checks, on Monad mainnet, ev
 
 The plan and the reasoning behind the test are in [`ideas/metropolis-opus-sonnet.md`](../../ideas/metropolis-opus-sonnet.md).
 
-> **Run it on your own machine.** The cloud environment that wrote this code is blocked from `rpc.monad.xyz`, so none of this has run against mainnet yet. Only the offline self-test has run (`npm run selftest`: ABIs match the Kuru SDK; replay, scoring and Merkle logic).
+> **Status (Oct 11, 2026).** The read-only steps (`npm run check`) have run against Monad mainnet from a laptop: see `reports/`. On MON/USDC, 6,602 book logs replayed with 8/8 live orders matching `s_orders` and deterministic roots; the AUSD/USDC book was empty (0 logs). The **write** steps (resting a quote, a taker fill, publish and claim) have **not** run: they need funded throwaway wallets (`npm run full -- --yes`, about $25).
 
 ## Setup
 

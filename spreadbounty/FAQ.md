@@ -24,7 +24,7 @@ On majors, largely yes. A third-party Kuru scan (a market-making retrospective, 
 Sponsors already pay for depth, through market-maker retainers and incentive programs, and can't check what they got. This makes that spend checkable. We have no signed sponsor; the ask is a one-week pilot.
 
 **6. What is live on Monad mainnet?**
-- **Done:** read-only checks against Kuru. The market's identity and implementation were confirmed, and in a 7,332-log replay 8 of 8 checked orders matched the contract's own state.
+- **Done:** read-only checks against Kuru on Oct 11. The market's identity and implementation were confirmed (MON/USDC and AUSD/USDC). In a replay of 6,602 Kuru MON/USDC book logs (blocks 112,568,360–112,570,360, Oct 11 2026, read-only), 8 of 8 live orders matched the contract's own `s_orders` state, and two independent replays produced the same payout root; report: `day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json`.
 - **Pending:** live maker and taker orders, a closed live epoch, and a distributor deployed on Monad. [Live transaction hashes go here once they exist.]
 
 All app screenshots and the bot backtest use a labelled **synthetic** dataset.

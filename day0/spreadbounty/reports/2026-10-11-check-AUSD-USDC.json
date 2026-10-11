@@ -1,0 +1,114 @@
+{
+  "mode": "check",
+  "market": "0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc",
+  "config": {
+    "rpcUrl": "https://rpc.monad.xyz",
+    "market": "0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc",
+    "refPrice": 1,
+    "bandBps": 5,
+    "scoreBandBps": 15,
+    "orderSize": 10,
+    "takerQuote": 5,
+    "minReserveMon": 11,
+    "maxTickBps": 5,
+    "lookbackBlocks": 2000,
+    "sampleEvery": 200,
+    "minRestBlocks": 20
+  },
+  "results": [
+    {
+      "step": "1a market params",
+      "status": "INFO",
+      "detail": "AUSD/USDC pricePrecision=10000000 sizePrecision=1000000 tick=100 minSize=10000000 maxSize=10000000000000 fees maker/taker=0/0 bps"
+    },
+    {
+      "step": "1b verified Kuru market",
+      "status": "PASS",
+      "detail": "Router.verifiedMarket=true, MarginAccount.verifiedMarket=true"
+    },
+    {
+      "step": "1c live top of book",
+      "status": "INFO",
+      "detail": "bestBidAsk (assumed 1e18-scaled) bid=none ask=none"
+    },
+    {
+      "step": "1d tick size",
+      "status": "PASS",
+      "detail": "tick = 0.100 bps at price 1 (go rule <= 5 bps)"
+    },
+    {
+      "step": "1e AMM vault",
+      "status": "INFO",
+      "detail": "vault 0xb4549195f26c90865e1aeDC7EB1f5F322a31E2f7: bid 0.999388488846017134 x 0, ask 1.000387877334863151 x 0, spread 10 -> not quoting (zero sizes)"
+    },
+    {
+      "step": "2 implementation",
+      "status": "PASS",
+      "detail": "EIP-1967 impl=0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0, Router.orderBookImplementation=0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0, expected 0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0"
+    },
+    {
+      "step": "5 replay vs s_orders",
+      "status": "WARN",
+      "detail": "0 book logs in blocks 112568300..112570300; 0 live orders replayed; 0/0 match s_orders at 112570300 (0.0%) -- empty book: run `npm run check` with MARKET=MON/USDC to test replay against real makers"
+    },
+    {
+      "step": "6 root determinism",
+      "status": "PASS",
+      "detail": "10 sample blocks, 0 scored makers; root A=0x0000000000000000000000000000000000000000000000000000000000000000 root B=0x0000000000000000000000000000000000000000000000000000000000000000; log sets identical=true"
+    }
+  ],
+  "txs": {},
+  "samples": [
+    {
+      "block": 112568471,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112568580,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112568877,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112568958,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112569189,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112569407,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112569666,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112569856,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112570035,
+      "mid": "10000000",
+      "scored": 0
+    },
+    {
+      "block": 112570118,
+      "mid": "10000000",
+      "scored": 0
+    }
+  ],
+  "verdict": "read-only checks pass -> run `npm run full -- --yes`"
+}
