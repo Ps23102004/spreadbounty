@@ -63,3 +63,7 @@
 }
 .md input:focus-visible, .md button:focus-visible { outline: 2px solid var(--bid, var(--accent)); outline-offset: 2px; }
 .md .btn { min-height: 44px; }
+
+/* Judge (B2): a second choice under the Writer, set off by a rule */
+.md-judge { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--rule, var(--hairline)); }
+.md-judge .md-hint { display: block; margin: 0 0 4px; }

@@ -201,7 +201,7 @@ async function offline() {
   }
   Object.assign(globalThis, { localStorage: new MemStorage(), sessionStorage: new MemStorage() });
   const { design, designInBrowser, report } = await import("../web/src/ai/client");
-  const { forgetKeys, saveSettings, setJudgeKey, setJudgeUrl } = await import("../web/src/ai/keys");
+  const { forgetKeys, getJudgeKey, getJudgeMode, judgeKeyRemembered, saveSettings, setJudgeKey, setJudgeMode, setJudgeUrl } = await import("../web/src/ai/keys");
   const { probeLocal } = await import("../web/src/ai/writer");
   let claim = ""; // a sentence the local model adds to every brief and report (no numbers, so the grounding guard passes it)
   function localModel(init: RequestInit) {
@@ -209,7 +209,7 @@ async function offline() {
     const system: string = b.messages[0].content, user: string = b.messages[1].content;
     const f = JSON.parse(user.slice(user.indexOf("{"), user.lastIndexOf("}") + 1) || "{}");
     const content = system.includes("fill in a small form") ? "{}" // intent: nothing usable, rules are used
-      : f.recommended ? `Use a ${f.recommended.bandBps} bps band.${claim}` : `Coverage was ${f.thisEpoch.twoSidedCoveragePct}%.${claim}`;
+      : f.recommended ? `Use a ${f.recommended["band bps"]} bps band.${claim}` : `Coverage was ${f["this epoch"]["two sided coverage %"]}%.${claim}`;
     if (b.response_format?.type === "json_schema") return Promise.resolve(new Response("{}", { status: 400 }));
     return Promise.resolve(Response.json({ model: b.model, choices: [{ message: { content } }] }));
   }
@@ -275,8 +275,39 @@ async function offline() {
     ok("support: a model sentence the facts don't back (numbers all grounded) switches brief and report to the template and names the sentence");
   }
   {
+    // the dialog's Judge choice decides the route; a stored key travels only when "your TypeSafe key" is chosen
+    use("none");
+    assert.equal(getJudgeMode(), "server", "default: this server's judge, as before the dialog had a Judge section");
+    setJudgeKey(HEADER_KEY, false);
+    fetched.length = 0;
+    upstream.length = 0;
+    await design(GOAL, () => {});
+    const viaOperator = fetched.filter((f) => f.url === "/api/judge");
+    assert.equal(viaOperator.length, 1);
+    assert.ok(!("x-typesafe-key" in viaOperator[0]!.headers), "Jev on this server: the browser's key is not sent");
+    assert.equal(upstream[0]!.headers.authorization, `Bearer ${ENV_KEY}`);
+    setJudgeMode("none");
+    fetched.length = 0;
+    upstream.length = 0;
+    const none = await design(GOAL, () => {});
+    assert.ok(!("judge" in none));
+    assert.ok(!fetched.some((f) => f.url === "/api/judge" || f.url.includes("systemone")), "None: no judge request at all");
+    assert.equal(upstream.length, 0);
+    setJudgeMode("key");
+    setJudgeKey("", false);
+    fetched.length = 0;
+    await design(GOAL, () => {});
+    assert.ok(!fetched.some((f) => f.url === "/api/judge"), "key chosen but empty: no judge, and the operator's key is not used instead");
+    setJudgeKey(HEADER_KEY, true);
+    assert.ok(judgeKeyRemembered() && globalThis.localStorage.getItem("sb-judge-key") === HEADER_KEY, "Remember keeps it in localStorage");
+    setJudgeKey(HEADER_KEY, false);
+    assert.ok(!judgeKeyRemembered() && globalThis.localStorage.getItem("sb-judge-key") === null && getJudgeKey() === HEADER_KEY, "without Remember: sessionStorage only");
+    ok("judge choice: default Jev on this server sends no browser key; None sends nothing; an empty key choice sends nothing; Remember -> localStorage");
+  }
+  {
     // the TypeSafe key typed in the browser goes to this server only as x-typesafe-key, and comes back nowhere
     use("none");
+    setJudgeMode("key");
     setJudgeKey(HEADER_KEY, false);
     fetched.length = 0;
     upstream.length = 0;
@@ -287,8 +318,10 @@ async function offline() {
     for (const f of fetched.filter((f) => JSON.stringify(f).includes(HEADER_KEY)))
       assert.ok((f.url === "/api/judge" && f.headers["x-typesafe-key"] === HEADER_KEY) || (f.url === TYPESAFE_URL && f.headers.authorization === `Bearer ${HEADER_KEY}`), `key sent to ${f.url}`);
     assert.equal(upstream[0]!.headers.authorization, `Bearer ${HEADER_KEY}`);
+    setJudgeKey(HEADER_KEY, true);
     forgetKeys();
     assert.equal(globalThis.sessionStorage.getItem("sb-judge-key"), null);
+    assert.equal(globalThis.localStorage.getItem("sb-judge-key"), null);
     for (const k of [ENV_KEY, HEADER_KEY]) {
       assert.ok(!serverLog.some((l) => l.includes(k)), "key in a server log line");
       assert.ok(!responses.some((r) => r.includes(k)), "key in an /api/judge response");
@@ -298,6 +331,7 @@ async function offline() {
   {
     // a local System One server, browser-direct with no key; never falls back to this server
     use("none");
+    setJudgeMode("local");
     setJudgeUrl(MOCK);
     fetched.length = 0;
     const r = await design(GOAL, () => {});
@@ -322,6 +356,9 @@ async function offline() {
     assert.ok(!("judge" in dead));
     assert.ok(!fetched.some((f) => f.url === "/api/judge"));
     setJudgeUrl("");
+    fetched.length = 0;
+    assert.ok(!("judge" in (await design(GOAL, () => {}))) && !fetched.some((f) => f.url === "/api/judge"), "local chosen but no URL: no judge, no server fallback");
+    setJudgeMode("server");
     ok("local System One: browser-direct, no key, no server fallback; probe claims only the types answered right (choice+noul, choice only, none)");
   }
   globalThis.fetch = realFetch;

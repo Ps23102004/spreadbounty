@@ -9,7 +9,7 @@ import { BLOCK_SECONDS, CHAIN_ID, USDC } from "../core/chain";
 import type { Campaign } from "../core/epoch";
 import { recentHistory, type DataSource } from "../data/source";
 import type { LLM } from "./http";
-import { BRIEF_SYSTEM, narrate, readIntent, templateBrief, type Candidate, type Intent } from "./prompts";
+import { BRIEF_SYSTEM, DEFAULT_BUDGET_PER_DAY, narrate, readIntent, requestNumbers, templateBrief, type Candidate, type Intent } from "./prompts";
 
 export { IntentSchema, PAIRS, ruleIntent, templateBrief, type Candidate, type Intent } from "./prompts";
 const STABLE = new Set(["AUSD/USDC"]);
@@ -37,10 +37,12 @@ export async function designCampaign(goal: string, src: DataSource, llm: LLM | n
     if (read.error) onStep({ step: "intent", status: "running", detail: "rules", note: `${read.error} Used rules instead.` });
   }
   const pair = intent.pair ?? "AUSD/USDC";
-  const budgetPerDay = intent.budgetPerDay && intent.budgetPerDay > 0 ? round(intent.budgetPerDay, 2) : 50;
+  const budgetDefault = !(intent.budgetPerDay && intent.budgetPerDay > 0);
+  const budgetPerDay = budgetDefault ? DEFAULT_BUDGET_PER_DAY : round(intent.budgetPerDay!, 2);
   const epochMinutes = Math.min(1440, Math.max(30, Math.round(intent.epochMinutes ?? 60)));
   const refPrice = intent.refPrice ?? (STABLE.has(pair) ? 1.0 : null);
-  onStep({ step: "intent", status: "done", detail: JSON.stringify({ pair, bandBps: intent.bandBps, budgetPerDay, epochMinutes, refPrice }) });
+  // `budgetDefault`: the sentence named no budget, so the tape can say "(default, not in your sentence)"
+  onStep({ step: "intent", status: "done", detail: JSON.stringify({ pair, bandBps: intent.bandBps, budgetPerDay, epochMinutes, refPrice, ...(budgetDefault ? { budgetDefault } : {}) }) });
 
   // 2. the market and its recent history
   onStep({ step: "market", status: "running" });
@@ -121,7 +123,7 @@ export async function designCampaign(goal: string, src: DataSource, llm: LLM | n
     budgetPerEpochUsdc: round(Number(campaign.budgetPerEpoch) / 1e6, 2),
   };
   onStep({ step: "brief", status: "running" });
-  const { text: brief, by: briefBy, attempts, error } = await narrate(opts.brief === "none" ? null : llm, BRIEF_SYSTEM, facts, templateBrief(facts));
+  const { text: brief, by: briefBy, attempts, error } = await narrate(opts.brief === "none" ? null : llm, BRIEF_SYSTEM, facts, templateBrief(facts), requestNumbers(goal, intent));
   onStep({ step: "brief", status: "done", detail: briefBy === "model" ? "written by model, every number checked" : attempts.length ? "model numbers failed the check: used template" : "template", ...(error ? { note: `${error} Used the template instead.` } : {}) });
 
   return {

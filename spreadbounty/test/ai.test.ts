@@ -7,12 +7,12 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { checkGrounding, textNumbers } from "../src/ai/grounding";
+import { checkGrounding, paymentClaims, textNumbers } from "../src/ai/grounding";
 import { anthropicMessages, openaiCompatible } from "../src/ai/http";
 import { extractJson } from "../src/ai/llm";
 import { designCampaign, IntentSchema, ruleIntent } from "../src/ai/pipeline";
-import { INTENT_SYSTEM } from "../src/ai/prompts";
-import { writeEpochReport } from "../src/ai/report";
+import { factsPrompt, INTENT_SYSTEM, requestNumbers } from "../src/ai/prompts";
+import { reportFacts, templateReport, writeEpochReport } from "../src/ai/report";
 import { demoSource } from "../src/data/source";
 import { readFileSync } from "node:fs";
 
@@ -32,6 +32,59 @@ assert.ok(checkGrounding("That is 1.14 USDC per $1k of depth, or 2.5 per 1,000."
 assert.deepEqual(checkGrounding("About $1k of extra depth.", { cost: 1.14 }).ungrounded, ["$1k"]); // a bare $1k is still a claim
 ok("grounding: accepts fact numbers and honest rounding, flags invented ones, ignores counts/hex/code/unit phrases");
 
+// ---------- field names copied into prose (judge finding: "achieved 100 twoSidedCoveragePct" got the green badge) ----------
+{
+  const f = { twoSidedCoveragePct: 100, bandBps: 25 };
+  const leak = checkGrounding("The book achieved 100 twoSidedCoveragePct at 25 bps.", f);
+  assert.equal(leak.ok, false);
+  assert.deepEqual(leak.ungrounded, []); // every number is right: only the identifier fails it
+  assert.deepEqual(leak.words, ["twoSidedCoveragePct"]);
+  assert.deepEqual(checkGrounding("Coverage hit 100twoSidedCoveragePct.", f).words, ["twoSidedCoveragePct"]); // glued to a number
+  assert.deepEqual(checkGrounding("Coverage was 100%; see avgDepthQuote.", f).words, ["avgDepthQuote"]); // camelCase that is no fact key
+  assert.ok(checkGrounding("Coverage was 100% within 25 bps, even on iOS and macOS.", f).ok);
+  ok("grounding: rejects camelCase field names (fact keys or identifier-shaped tokens), allows plain prose");
+}
+
+// ---------- the sponsor's own numbers are not invented; numbers from nowhere still are ----------
+{
+  const goal = "Deepen MON/USDC within 0.25%, about $700 a week";
+  const allowed = requestNumbers(goal, ruleIntent(goal));
+  const f = { bandBps: 25, budgetPerDayUsdc: 100 };
+  assert.deepEqual(checkGrounding("Keep MON/USDC within 0.25% as you asked, with a 25 bps band.", f).ungrounded, ["0.25"]); // the old false positive
+  assert.ok(checkGrounding("Keep MON/USDC within 0.25% as you asked, with a 25 bps band and $700 a week.", f, allowed).ok);
+  assert.deepEqual(checkGrounding("Keep MON/USDC within 0.4%, with a 25 bps band.", f, allowed).ungrounded, ["0.4"]);
+  assert.deepEqual(checkGrounding("Expect 97.5% coverage.", f, allowed).ungrounded, ["97.5"]);
+  ok("grounding: numbers in the sponsor's sentence or the parsed form pass; numbers in neither are still rejected");
+}
+
+// ---------- shadow campaigns: nobody was paid ----------
+{
+  const sf = { shadow: true, rewardsUsdc: 10 };
+  assert.deepEqual(checkGrounding("1 maker was paid 10 USDC and took the whole budget.", sf).words, ["paid", "took"]);
+  assert.ok(checkGrounding("Nobody was paid. 1 maker would have taken 10 USDC; makers would have shared it.", sf).ok);
+  assert.ok(checkGrounding("1 maker took 10 USDC.", { ...sf, shadow: false }).ok); // a real campaign may say it
+  const s2 = JSON.parse(readFileSync("data/shadow/mon-usdc-shadow-112650356/epoch-2.json", "utf8"));
+  const s1 = JSON.parse(readFileSync("data/shadow/mon-usdc-shadow-112650356/epoch-1.json", "utf8"));
+  const shadow = templateReport(reportFacts(s2, s1, true));
+  assert.match(shadow, /^Shadow campaign: nobody was paid\. /);
+  assert.match(shadow, / 1 maker would have received [\d.]+ of the [\d.]+ USDC budget/);
+  assert.match(shadow, /the largest maker would have taken 100%/);
+  assert.deepEqual(paymentClaims(shadow), []);
+  assert.ok(!/\bmakers shared\b|\btook\b/.test(shadow));
+  const real = templateReport(reportFacts(s2, s1, false));
+  assert.match(real, / 1 maker received [\d.]+ of the/); // singular: never "1 makers shared"
+  assert.ok(!real.includes("1 makers"));
+  assert.equal(reportFacts(s2, s1).shadow, false, "the epoch file alone does not carry the flag; callers pass it");
+  ok("report template: shadow says 'nobody was paid' and 'would have received/taken'; one maker reads '1 maker'");
+}
+
+// ---------- the facts a model sees use plain words, not field names ----------
+{
+  const prompt = factsPrompt({ thisEpoch: { twoSidedCoveragePct: 93.9, costPer1kDepthUsdc: 1.14 }, history: { twoSidedPctWithin15Bps: 80 } }, null);
+  assert.equal(prompt, 'Facts (JSON):\n{"this epoch":{"two sided coverage %":93.9,"cost per 1k depth USDC":1.14},"history":{"two sided % within 15 bps":80}}');
+  ok("factsPrompt: keys become plain words (two sided coverage %, cost per 1k depth USDC)");
+}
+
 // ---------- JSON extraction from chatty small-model replies ----------
 assert.deepEqual(extractJson('Sure! Here it is:\n```json\n{"a": 1, "b": "x}"}\n```\nHope that helps'), { a: 1, b: "x}" });
 assert.deepEqual(extractJson('The answer is {"pair": null, "n": {"k": 2}} done'), { pair: null, n: { k: 2 } });
@@ -42,7 +95,18 @@ ok("extractJson: code fences, prose around JSON, braces inside strings");
 assert.equal(ruleIntent("Deepen MON/USDC, about $700 a week").budgetPerDay, 100);
 assert.equal(ruleIntent("ausd within 0.2%").bandBps, 20);
 assert.equal(ruleIntent("AUSD/USDC 15 bps hourly").epochMinutes, 60);
-ok("ruleIntent: weekly/monthly budgets, % and bps bands, hourly epochs");
+assert.equal(ruleIntent("Deepen the MON book").budgetPerDay, null);
+assert.equal(ruleIntent("Deepen the MON book").summary, "Deepen the MON book. Budget: 50/day (default, not in your sentence).");
+assert.ok(!ruleIntent("Deepen MON/USDC, about $700 a week").summary.includes("default"));
+ok("ruleIntent: weekly/monthly budgets, % and bps bands, hourly epochs; a missing budget is called a default in the summary");
+{
+  const details: string[] = [];
+  await designCampaign("Deepen the MON book", demoSource(), null, (s) => s.step === "intent" && s.status === "done" && details.push(s.detail!));
+  assert.equal(JSON.parse(details[0]!).budgetDefault, true);
+  await designCampaign("Deepen the MON book, $50/day", demoSource(), null, (s) => s.step === "intent" && s.status === "done" && details.push(s.detail!));
+  assert.equal(JSON.parse(details[1]!).budgetDefault, undefined);
+  ok("pipeline: the intent step marks a default budget (budgetDefault) so the tape need not present 50/day as read");
+}
 
 // ---------- (a) an intent read elsewhere (the browser) drives the same backtest as the rules-only path ----------
 {
@@ -88,9 +152,10 @@ ok("ruleIntent: weekly/monthly budgets, % and bps bands, hourly epochs");
 }
 
 // ---------- mock weak local model ----------
-type Mode = "good" | "liar" | "fixes-on-retry";
+type Mode = "good" | "liar" | "fixes-on-retry" | "echo-request" | "leak" | "paid";
 let mode: Mode = "fixes-on-retry";
 let calls: { body: any }[] = [];
+const factsSeen: any[] = [];
 const server = createServer(async (req, res) => {
   let raw = "";
   for await (const c of req) raw += c;
@@ -105,8 +170,12 @@ const server = createServer(async (req, res) => {
   if (mode === "liar" || (mode === "fixes-on-retry" && !retry)) return reply("<think>hmm</think>Coverage would be 97.5% with 12,345 USDC of depth.");
   // a grounded answer: quote numbers straight from the facts
   const f = JSON.parse(user.slice(user.indexOf("{"), user.lastIndexOf("}") + 1));
-  const rec = f.recommended ?? f.thisEpoch;
-  return reply(f.recommended ? `Use a ${rec.bandBps} bps band; history shows ${rec.twoSidedCoveragePct}% two-sided coverage.` : `Coverage was ${rec.twoSidedCoveragePct}% with ${rec.avgTwoSidedDepthUsdc} USDC of depth.`);
+  factsSeen.push(f);
+  const rec = f.recommended ?? f["this epoch"];
+  if (mode === "echo-request") return reply(`Keep the book within 0.25% as you asked: a ${rec["band bps"]} bps band.`);
+  if (mode === "leak") return reply(`The book achieved ${rec["two sided coverage %"]} twoSidedCoveragePct.`);
+  if (mode === "paid") return reply(`${rec["makers rewarded"]} maker was paid ${rec["rewards USDC"]} USDC.`);
+  return reply(f.recommended ? `Use a ${rec["band bps"]} bps band; history shows ${rec["two sided coverage %"]}% two-sided coverage.` : `Coverage was ${rec["two sided coverage %"]}% with ${rec["average two sided depth USDC"]} USDC of depth.`);
 });
 await new Promise<void>((r) => server.listen(0, r));
 process.env.AI_PROVIDER = "local";
@@ -138,7 +207,40 @@ mode = "good";
 const rep = await writeEpochReport(e2, e1, llm);
 assert.equal(rep.ai.writtenBy, "model");
 assert.ok(checkGrounding(rep.markdown, rep.facts).ok);
-ok("report: grounded model text accepted");
+const keysOf = (v: unknown): string[] => (Array.isArray(v) ? v.flatMap(keysOf) : v && typeof v === "object" ? Object.entries(v).flatMap(([k, x]) => [k, ...keysOf(x)]) : []);
+assert.ok(keysOf(factsSeen.at(-1)).every((k) => !/[a-z][A-Z]/.test(k)), "the model saw no camelCase field names");
+ok("report: grounded model text accepted; the facts it saw had plain-word keys");
+
+mode = "leak";
+const leaked = await writeEpochReport(e2, e1, llm);
+assert.equal(leaked.ai.writtenBy, "template");
+assert.equal(leaked.ai.groundingAttempts.length, 2);
+assert.ok(leaked.ai.groundingAttempts[0]!.ungrounded.includes("twoSidedCoveragePct"));
+assert.ok(calls.at(-1)!.body.messages[1].content.includes("Do not write twoSidedCoveragePct"), "the retry names the field");
+ok("report: a model that copies a field name into prose fails twice -> template, no green badge");
+
+{
+  const s2 = JSON.parse(readFileSync("data/shadow/mon-usdc-shadow-112650356/epoch-2.json", "utf8"));
+  const s1 = JSON.parse(readFileSync("data/shadow/mon-usdc-shadow-112650356/epoch-1.json", "utf8"));
+  mode = "paid";
+  assert.equal((await writeEpochReport(s2, s1, llm, false)).ai.writtenBy, "model"); // "was paid" is true of a real campaign
+  const sh = await writeEpochReport(s2, s1, llm, true);
+  assert.equal(sh.ai.writtenBy, "template");
+  assert.deepEqual(sh.ai.groundingAttempts.map((a) => a.ungrounded), [["paid"], ["paid"]]);
+  assert.equal(factsSeen.at(-1).shadow, true, "the model is told it is a shadow campaign");
+  assert.match(sh.markdown, /^Shadow campaign: nobody was paid\./);
+  mode = "good";
+  ok("shadow report: model text saying a maker was paid is rejected -> 'nobody was paid' template");
+}
+
+{
+  mode = "echo-request";
+  const echo = await designCampaign("Deepen MON/USDC within 0.25%, about $700 a week", src, llm);
+  assert.equal(echo.ai.briefBy, "model");
+  assert.match(echo.brief, /within 0\.25% as you asked/);
+  mode = "good";
+  ok("pipeline brief: repeating the sponsor's own 0.25% passes the grounding guard");
+}
 
 {
   // (b) the shared adapter on its own: schema-valid JSON out of a prose-wrapped reply, after json_schema is refused

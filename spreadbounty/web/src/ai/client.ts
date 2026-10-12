@@ -51,16 +51,26 @@ export async function design(goal: string, onStep: (s: StepNote) => void, signal
   return withJudge(r, await asked, check);
 }
 
+/** A shadow campaign (`shadow: true` on its campaign row) paid nobody; the epoch files themselves don't say so. */
+const isShadow = (campaignId: string) =>
+  api.campaigns().then((cs) => (cs.find((c) => c.id === campaignId) as { shadow?: boolean } | undefined)?.shadow === true);
+
 /** Overview's epoch report entry point: replaces api.report. */
 export async function report(campaignId: string, n: number): Promise<WriterReport> {
-  const { settings, llm } = await currentWriter();
+  const [{ settings, llm }, shadow] = await Promise.all([currentWriter(), isShadow(campaignId)]);
   let r: WriterReport;
   if (settings.provider === "server") {
     const s = await api.report(campaignId, n);
     r = { ...s, ai: { ...s.ai, where: "server", notes: [] } };
+    if (shadow && r.facts && !r.facts.shadow) {
+      // a server that does not pass the shadow flag writes "paid": replace its words with the shadow template
+      const { templateReport } = await import("../../../src/ai/report");
+      const facts = { ...r.facts, shadow: true };
+      r = { ...r, facts, markdown: templateReport(facts), ai: { ...r.ai, writtenBy: "template", notes: [...r.ai.notes, "This server wrote the report as if makers were paid. Used the shadow template instead."] } };
+    }
   } else {
     const [epoch, prev] = await Promise.all([api.epoch(campaignId, n), n > 0 ? api.epoch(campaignId, n - 1).catch(() => null) : null]);
-    r = await reportInBrowser(epoch, prev, llm);
+    r = await reportInBrowser(epoch, prev, llm, shadow);
   }
   const facts = r.facts;
   const check = r.ai.writtenBy === "model" && facts ? await checkText(r.markdown, facts) : null;
@@ -82,19 +92,21 @@ function withJudge<T extends object>(r: T, asked: Judge | null, check: Judge | n
   return { ...r, judge: { flags: asked?.flags ?? [], ...(asked?.needsPair ? { needsPair: asked.needsPair } : {}), ...(check ? { unsupported: check.unsupported ?? [] } : {}), by: asked?.by ?? check?.by } };
 }
 
-export async function reportInBrowser(epoch: EpochFile, prev: EpochFile | null, llm: LLM | null): Promise<WriterReport> {
+export async function reportInBrowser(epoch: EpochFile, prev: EpochFile | null, llm: LLM | null, shadow = false): Promise<WriterReport> {
   const { writeEpochReport } = await import("../../../src/ai/report");
-  const r = await writeEpochReport(epoch, prev, llm);
+  const r = await writeEpochReport(epoch, prev, llm, shadow);
   return { markdown: r.markdown, root: r.root, facts: r.facts, ai: { ...r.ai, where: "browser", notes: r.ai.error ? [`${r.ai.error} Used the template instead.`] : [] } };
 }
 
 export async function designInBrowser(goal: string, llm: LLM | null, onStep: (s: StepNote) => void, signal?: AbortSignal): Promise<WriterDesign> {
-  const { BRIEF_SYSTEM, narrate, readIntent, templateBrief } = await import("../../../src/ai/prompts");
+  const { BRIEF_SYSTEM, narrate, readIntent, requestNumbers, templateBrief } = await import("../../../src/ai/prompts");
   const who = llm ? `${llm.model} in your browser` : "rules";
   const notes: string[] = [];
-  onStep({ step: "intent", status: "running", detail: who });
+  onStep({ step: "intent", status: "running", detail: llm ? `asking ${who}` : who });
   const read = await readIntent(goal, llm);
   if (read.error) notes.push(`${read.error} Used rules instead.`);
+  // the tape's "request read by" line takes the last running detail: name who actually read it (rules after a 401)
+  if (llm) onStep({ step: "intent", status: "running", detail: read.by === "model" ? who : "rules" });
 
   const server = await postCopilot({ goal, intent: read.intent, brief: "none" }, signal, (s) => {
     if (s.step === "brief" || (s.step === "intent" && s.status === "running")) return; // this tab owns both model steps
@@ -102,8 +114,8 @@ export async function designInBrowser(goal: string, llm: LLM | null, onStep: (s:
   });
   if (!server.facts) throw new Error("This server is too old for in-browser writing (no facts in the copilot reply).");
 
-  onStep({ step: "brief", status: "running", detail: who });
-  const b = await narrate(llm, BRIEF_SYSTEM, server.facts, templateBrief(server.facts));
+  onStep({ step: "brief", status: "running", detail: llm ? `asking ${who}` : who });
+  const b = await narrate(llm, BRIEF_SYSTEM, server.facts, templateBrief(server.facts), requestNumbers(goal, read.intent));
   if (b.error) notes.push(`${b.error} Used the template instead.`);
   onStep({
     step: "brief", status: "done",

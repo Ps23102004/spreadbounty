@@ -81,16 +81,27 @@ export function forgetKeys() {
   changed();
 }
 
-// ---- the decision model (B2): an optional TypeSafe key, or a local System One URL (Von / Laya) that needs none ----
-const JUDGE_KEY = "sb-judge-key", JUDGE_URL = "sb-judge-url";
+// ---- the decision model (B2): the Judge choice, an optional TypeSafe key, or a local System One URL (Von / Laya) that needs none ----
+/** none: no judge. server: this server's /api/judge with the operator's key. key: the same route with the user's key. local: browser-direct. */
+export type JudgeMode = "none" | "server" | "key" | "local";
+const JUDGE_MODES: JudgeMode[] = ["none", "server", "key", "local"];
+const JUDGE_MODE = "sb-judge", JUDGE_KEY = "sb-judge-key", JUDGE_URL = "sb-judge-url";
+/** Default "server": the operator decides whether a judge exists (no TYPESAFE_API_KEY on the server means none runs). */
+export const getJudgeMode = (): JudgeMode => JUDGE_MODES.find((m) => m === read("local", JUDGE_MODE)) ?? "server";
+export function setJudgeMode(m: JudgeMode) {
+  write("local", JUDGE_MODE, m);
+  changed();
+}
 export const getJudgeKey = () => read("session", JUDGE_KEY) ?? read("local", JUDGE_KEY) ?? "";
+/** The judge key was saved with "Remember on this device". */
+export const judgeKeyRemembered = () => read("local", JUDGE_KEY) !== null;
 export function setJudgeKey(key: string, remember: boolean) {
   const v = key.trim() || null;
   write("session", JUDGE_KEY, v);
   write("local", JUDGE_KEY, remember ? v : null);
   changed();
 }
-/** A local server speaking POST /v1/systemone, e.g. http://localhost:8770/v1/systemone. Empty: use this server's /api/judge. */
+/** A local server speaking POST /v1/systemone, e.g. http://localhost:8770/v1/systemone. Used only when the Judge is "local". */
 export const getJudgeUrl = () => read("local", JUDGE_URL) ?? "";
 export function setJudgeUrl(url: string) {
   write("local", JUDGE_URL, url.trim() || null);
