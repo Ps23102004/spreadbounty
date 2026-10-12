@@ -1,7 +1,8 @@
 /**
- * Grounding guard: every number a model writes must exist in the facts it was given.
- * Small local models invent figures; this catches it deterministically and lets the caller
- * retry once with the offending numbers named, then fall back to a template.
+ * Grounding guard: every number a model writes must exist in the facts it was given (or the sponsor's own request).
+ * Small local models invent figures and copy field names ("100 twoSidedCoveragePct"); this catches both
+ * deterministically and lets the caller retry once with the offending tokens named, then fall back to a template.
+ * Facts marked `shadow: true` (nobody was paid) also reject text that says a maker was paid, took or earned money.
  */
 
 /** Every finite number reachable in a JSON value (numbers and numeric strings). */
@@ -39,6 +40,33 @@ export function textNumbers(text: string): { raw: string; value: number; decimal
   return out;
 }
 
+/** Every key in a JSON value, at any depth. */
+function factKeys(facts: unknown, out = new Set<string>()): Set<string> {
+  if (Array.isArray(facts)) facts.forEach((v) => factKeys(v, out));
+  else if (facts && typeof facts === "object")
+    for (const [k, v] of Object.entries(facts)) {
+      out.add(k);
+      factKeys(v, out);
+    }
+  return out;
+}
+
+const IDENT = /\b[a-z]+[A-Z][A-Za-z0-9]*\b/g;
+const PROSE_WORDS = new Set(["iOS", "macOS", "iPhone", "iPad", "eBay"]);
+
+/** camelCase tokens in prose: a fact key copied as-is, or anything shaped like one. */
+export function identifiers(text: string, facts: unknown) {
+  const found = (text.match(IDENT) ?? []).filter((t) => !PROSE_WORDS.has(t));
+  for (const k of factKeys(facts)) if (/[a-z][A-Z]/.test(k) && text.includes(k)) found.push(k); // also glued to a number: "100twoSidedCoveragePct"
+  return [...new Set(found)];
+}
+
+const HYPOTHETICAL = /\bwould(?: not|n't)? have(?: been)? \w+|\b(?:nobody|no one|nothing|no makers?)\b[^.]*?\bpaid\b|\bnot (?:been )?paid\b/gi;
+const PAYMENT = /\b(?:paid|took|taken|earned|received|shared|collected)\b/gi;
+
+/** In a shadow campaign nobody was paid: "would have earned" is fine, "earned" or "took" is a false claim. */
+export const paymentClaims = (text: string) => [...new Set([...text.replace(HYPOTHETICAL, " ").matchAll(PAYMENT)].map((m) => m[0]))];
+
 export function checkGrounding(text: string, facts: unknown, extraAllowed: number[] = []) {
   const allowed = [...factNumbers(facts), ...extraAllowed];
   const ungrounded: string[] = [];
@@ -48,7 +76,9 @@ export function checkGrounding(text: string, facts: unknown, extraAllowed: numbe
     const ok = allowed.some((f) => Math.abs(n.value - f) <= tol + 1e-9 || (f !== 0 && Math.abs(n.value - f) / Math.abs(f) <= 0.005));
     if (!ok) ungrounded.push(n.raw);
   }
-  return { ok: ungrounded.length === 0, ungrounded: [...new Set(ungrounded)] };
+  const shadow = (facts as { shadow?: unknown } | null)?.shadow === true;
+  const words = [...identifiers(text, facts), ...(shadow ? paymentClaims(text) : [])];
+  return { ok: ungrounded.length === 0 && words.length === 0, ungrounded: [...new Set(ungrounded)], words, shadow };
 }
 
 /** Ask for text, check it, retry once naming the bad numbers, else return null so the caller uses a template. */
@@ -63,9 +93,13 @@ export async function groundedText(
     const text = await generate(feedback);
     if (!text) return { text: null, attempts };
     const g = checkGrounding(text, facts, extraAllowed);
-    attempts.push({ ungrounded: g.ungrounded });
+    attempts.push({ ungrounded: [...g.ungrounded, ...g.words] });
     if (g.ok) return { text, attempts };
-    feedback = `These numbers are not in the facts and must not appear: ${g.ungrounded.join(", ")}. Rewrite using only numbers from the facts.`;
+    feedback = [
+      g.ungrounded.length ? `These numbers are not in the facts and must not appear: ${g.ungrounded.join(", ")}.` : "",
+      g.words.length ? `Do not write ${g.words.join(", ")}: use plain words${g.shadow ? '; nobody was paid, so write "would have earned", "would have shared", "would have taken"' : ""}.` : "",
+      "Rewrite using only numbers from the facts.",
+    ].filter(Boolean).join(" ");
   }
   return { text: null, attempts };
 }

@@ -6,9 +6,18 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checkGrounding } from "../src/ai/grounding";
+import { register } from "node:module";
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { checkGrounding, paymentClaims } from "../src/ai/grounding";
 import { designCampaign, IntentSchema } from "../src/ai/pipeline";
+import { writeEpochReport } from "../src/ai/report";
 import { demoSource } from "../src/data/source";
+
+// The model dialog is rendered to markup below: Node needs its CSS import to be a no-op and a global React
+// (the root tsconfig compiles JSX to React.createElement).
+register("data:text/javascript,export async function load(u,c,n){return u.endsWith('.css')?{format:'module',source:'',shortCircuit:true}:n(u,c)}");
+Object.assign(globalThis, { React });
 
 // ---------- the browser globals the Writer uses ----------
 class MemStorage {
@@ -24,17 +33,20 @@ const local = new MemStorage(), session = new MemStorage();
 Object.assign(globalThis, { localStorage: local, sessionStorage: session });
 
 const { design, report } = await import("../web/src/ai/client");
-const { forgetKeys, getKey, saveSettings, setKey } = await import("../web/src/ai/keys");
+const { forgetKeys, getKey, saveSettings, setJudgeKey, setJudgeMode, setKey } = await import("../web/src/ai/keys");
 const { testConnection, writerLabel } = await import("../web/src/ai/providers");
 
 let n = 0;
 const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
+const DIALOG = "../web/src/ui/ModelDialog.tsx"; // a variable, so the root tsc (no JSX setting) does not compile the .tsx
 
 // ---------- one spy for every request the browser makes ----------
 type Seen = { url: string; headers: Record<string, string>; body: any };
 let seen: Seen[] = [];
 let providerStatus = 200; // what Anthropic / OpenAI / Ollama answer
 let liar = false; // the model invents numbers in every draft
+let echo = ""; // a sentence the model adds to every brief (e.g. one repeating the sponsor's own number)
+let shadowCampaign = false; // what /api/campaigns says about ausd-usdc-demo
 const src = demoSource();
 const epochFile = (k: number) => JSON.parse(readFileSync(`out/demo/ausd-usdc-demo/epoch-${k}.json`, "utf8"));
 const factsIn = (user: string) => JSON.parse(user.slice(user.indexOf("{"), user.lastIndexOf("}") + 1));
@@ -42,8 +54,8 @@ function modelReply(system: string, user: string) {
   if (system.includes("fill in a small form")) return 'Sure! ```json\n{"pair":"MON/USDC","bandBps":null,"budgetPerDay":null,"epochMinutes":60,"refPrice":null,"summary":"Deepen MON"}\n```';
   if (system.includes("single word")) return "ready";
   if (liar) return "Coverage would be 97.5% with 12,345 USDC of depth.";
-  const f = factsIn(user);
-  return f.recommended ? `Use a ${f.recommended.bandBps} bps band; history shows ${f.recommended.twoSidedCoveragePct}% two-sided coverage.` : `Coverage was ${f.thisEpoch.twoSidedCoveragePct}% with ${f.thisEpoch.avgTwoSidedDepthUsdc} USDC of depth.`;
+  const f = factsIn(user), t = f["this epoch"];
+  return f.recommended ? `Use a ${f.recommended["band bps"]} bps band; history shows ${f.recommended["two sided coverage %"]}% two-sided coverage.${echo}` : `Coverage was ${t["two sided coverage %"]}% with ${t["average two sided depth USDC"]} USDC of depth.`;
 }
 globalThis.fetch = (async (input: string | URL, init: RequestInit = {}) => {
   const url = String(input);
@@ -58,8 +70,10 @@ globalThis.fetch = (async (input: string | URL, init: RequestInit = {}) => {
     lines.push(JSON.stringify({ type: "result", ...r }));
     return new Response(lines.join("\n") + "\n");
   }
+  if (url === "/api/campaigns") return Response.json([{ id: "ausd-usdc-demo", shadow: shadowCampaign }]);
   const ep = url.match(/^\/api\/campaigns\/ausd-usdc-demo\/epochs\/(\d+)$/);
   if (ep) return Response.json(epochFile(Number(ep[1])));
+  if (url === "/api/campaigns/ausd-usdc-demo/epochs/2/report") return Response.json(await writeEpochReport(epochFile(2), epochFile(1), null)); // a server that passes no shadow flag
   // model providers
   const provider = ["https://api.anthropic.com/", "https://api.openai.com/", "http://localhost:11434/"].find((p) => url.startsWith(p));
   if (!provider) throw new TypeError("Failed to fetch"); // what a browser reports for CORS blocks and dead hosts
@@ -74,6 +88,8 @@ globalThis.fetch = (async (input: string | URL, init: RequestInit = {}) => {
 }) as typeof fetch;
 
 const failure = (t: Awaited<ReturnType<typeof testConnection>>) => (t.ok ? "" : t.message);
+/** What the Design tape prints after "request read by": the last running detail of the intent step (Design.tsx stepLine). */
+const tapeReader = (steps: { step: string; status?: string; detail?: string }[]) => steps.filter((s) => s.step === "intent" && s.status === "running").at(-1)?.detail;
 const GOAL = "Deepen the MON book, about $700 a week";
 const ownOrigin = (u: string) => new URL(u, "http://this-app.test").origin === "http://this-app.test";
 /** Every request carrying the key went to `origin`; nothing to this app's origin carried a key or an auth header. */
@@ -148,11 +164,12 @@ const use = (provider: "none" | "anthropic" | "openai" | "local", model: string,
 // ---------- Local (Ollama): no key, no auth header ----------
 {
   use("local", "gemma4:e4b-it-qat");
-  const steps: { step: string; detail?: string }[] = [];
+  const steps: { step: string; status?: string; detail?: string }[] = [];
   const r = await design(GOAL, (s) => steps.push(s));
   assert.ok(seen.some((s) => s.url === "http://localhost:11434/v1/chat/completions"));
   assert.ok(seen.every((s) => !("authorization" in s.headers) && !("x-api-key" in s.headers)));
-  assert.equal(steps[0]!.detail, "gemma4:e4b-it-qat in your browser"); // the tape's first line names the browser model
+  assert.equal(steps[0]!.detail, "asking gemma4:e4b-it-qat in your browser"); // the spinner says who is being asked
+  assert.equal(tapeReader(steps), "gemma4:e4b-it-qat in your browser"); // the tape's first line names the model that read it
   assert.equal(r.ai.model, "gemma4:e4b-it-qat");
   const t = await testConnection({ provider: "local", model: "gemma4:e4b-it-qat", baseUrl: "http://localhost:11434/v1", remember: false }, "");
   assert.ok(t.ok && t.model === "gemma4:e4b-it-qat" && t.latencyMs >= 0);
@@ -174,13 +191,84 @@ const use = (provider: "none" | "anthropic" | "openai" | "local", model: string,
   ok("browser brief: invented numbers fail the same grounding guard twice, the template is shown");
 }
 
+// ---------- the browser brief may repeat the sponsor's own numbers, and only those ----------
+{
+  use("local", "gemma4:e4b-it-qat");
+  echo = " Keep it within 0.25% as you asked.";
+  const own = await design("Deepen MON/USDC within 0.25%, about $700 a week", () => {});
+  assert.equal(own.ai.briefBy, "model");
+  assert.match(own.brief, /0\.25% as you asked/);
+  echo = " Keep it within 0.65% as you asked.";
+  const invented = await design("Deepen MON/USDC within 0.25%, about $700 a week", () => {});
+  assert.equal(invented.ai.briefBy, "template");
+  assert.deepEqual(invented.ai.groundingAttempts[0]!.ungrounded, ["0.65"]);
+  echo = "";
+  ok("browser brief: the sponsor's 0.25% passes; a 0.65% that is in neither the facts nor the request still fails");
+}
+
+// ---------- shadow campaigns: the browser report never says anyone was paid ----------
+{
+  shadowCampaign = true;
+  use("none", "");
+  const r = await report("ausd-usdc-demo", 2);
+  assert.equal(r.facts!.shadow, true);
+  assert.match(r.markdown, /^Shadow campaign: nobody was paid\./);
+  assert.deepEqual(paymentClaims(r.markdown), []);
+  use("anthropic", "claude-opus-5-5", "test-key-anthropic-0001");
+  const m = await report("ausd-usdc-demo", 2);
+  assert.equal(m.ai.writtenBy, "model");
+  const sent = seen.find((s) => s.url === "https://api.anthropic.com/v1/messages")!;
+  assert.equal(factsIn(sent.body.messages[0].content).shadow, true, "the model is told nobody was paid");
+  saveSettings({ provider: "server", model: "", baseUrl: "", remember: false });
+  const srv = await report("ausd-usdc-demo", 2);
+  assert.match(srv.markdown, /^Shadow campaign: nobody was paid\./);
+  assert.equal(srv.ai.writtenBy, "template");
+  assert.match(srv.ai.notes.at(-1)!, /as if makers were paid/);
+  shadowCampaign = false;
+  use("none", "");
+  assert.ok(!(await report("ausd-usdc-demo", 2)).markdown.startsWith("Shadow"));
+  ok("shadow report: the campaign row's flag reaches the template and the model's facts; a server without the flag is overridden");
+}
+
+// ---------- the model dialog: Judge section and what each choice sends where ----------
+{
+  const { ModelDialog } = await import(DIALOG);
+  const render = () => renderToStaticMarkup(React.createElement(ModelDialog, { open: false, onClose: () => {}, serverAi: null }));
+  forgetKeys();
+  use("local", "gemma4:e4b-it-qat");
+  const local = render();
+  assert.match(local, /Model calls go from this browser to localhost:11434\. This server still gets your sentence and the form read from it, to run the backtest\./);
+  assert.ok(!local.includes("This server never sees them"), "the old line said the server sees nothing");
+
+  setJudgeMode("server");
+  assert.match(render(), /<legend class="label">Judge<\/legend>.*checked=""\/><span>Jev on this server<\/span>/);
+  assert.match(render(), /asks TypeSafe Jev with the operator&#x27;s key/);
+  setJudgeMode("key");
+  setJudgeKey("ts-test-key-render-0009", false);
+  const key = render();
+  assert.match(key, /<label class="label" for="([^"]+)-jkey">TypeSafe key<\/label><div class="md-inline"><input id="\1-jkey" type="password" autoComplete="off"/);
+  assert.match(key, /passes through this server for each request, to api\.typesafe\.ai only\. It is never stored or logged\. The key is forgotten when this tab closes\./);
+  assert.match(key, /Remember on this device/);
+  setJudgeMode("local");
+  const loc = render();
+  assert.match(loc, /<span class="label">System One URL<\/span><input type="url"[^>]*value="http:\/\/localhost:8770\/v1\/systemone"/);
+  assert.match(loc, /go from this browser to localhost:8770, with no key\. This server&#x27;s judge is not asked\./);
+  setJudgeMode("none");
+  assert.match(render(), /No judge: nothing is flagged/);
+  setJudgeMode("server");
+  forgetKeys();
+  ok("model dialog: Judge section (None / Jev on this server / your TypeSafe key / local System One) with labelled inputs; local Writer copy says the sentence still reaches this server");
+}
+
 // ---------- readable failures, per step ----------
 {
   use("anthropic", "claude-opus-5-5", "test-key-anthropic-0001");
   providerStatus = 401;
-  const steps: { step: string; note?: string }[] = [];
+  const steps: { step: string; status?: string; detail?: string; note?: string }[] = [];
   const r = await design(GOAL, (s) => steps.push(s));
   assert.equal(r.ai.intentBy, "rules");
+  assert.equal(tapeReader(steps), "rules", "a rejected key: the tape says the rules read the request");
+  assert.ok(!steps.some((s) => s.step === "intent" && s.detail === "claude-opus-5-5 in your browser"), "never 'read by claude-opus-5-5'");
   assert.equal(r.ai.briefBy, "template");
   assert.deepEqual(r.ai.notes, ["Anthropic rejected the key (401). Used rules instead.", "Anthropic rejected the key (401). Used the template instead."]);
   assert.ok(steps.some((s) => s.step === "intent" && s.note === "Anthropic rejected the key (401). Used rules instead."));
@@ -193,7 +281,7 @@ const use = (provider: "none" | "anthropic" | "openai" | "local", model: string,
   providerStatus = 200;
   const dead = await testConnection({ provider: "local", model: "m", baseUrl: "http://localhost:1234/v1", remember: false }, "");
   assert.match(failure(dead), /could not reach localhost:1234.*OLLAMA_ORIGINS/);
-  ok("failures read plainly and fall back per step: 401 -> rules + template, 429 named, unreachable local server explains OLLAMA_ORIGINS");
+  ok("failures read plainly and fall back per step: 401 -> rules + template (tape: read by rules), 429 named, unreachable local server explains OLLAMA_ORIGINS");
 }
 
 // ---------- key storage ----------
@@ -210,8 +298,10 @@ const use = (provider: "none" | "anthropic" | "openai" | "local", model: string,
   setKey("anthropic", "test-key-store-0003", true);
   forgetKeys();
   assert.ok(![...values(local), ...values(session)].some((v) => v.includes("test-key-store-0003")) && getKey("anthropic") === "");
-  assert.equal(writerLabel({ provider: "local", model: "gemma4:e4b-it-qat", baseUrl: "", remember: false }), "Writer: gemma4 (browser)");
-  assert.equal(writerLabel({ provider: "anthropic", model: "claude-opus-5-5", baseUrl: "", remember: false }), "Writer: Claude (browser)");
+  assert.equal(writerLabel({ provider: "local", model: "gemma4:e4b-it-qat", baseUrl: "", remember: false }, null, null), "Writer: gemma4 (browser)");
+  assert.equal(writerLabel({ provider: "anthropic", model: "claude-opus-5-5", baseUrl: "", remember: false }, null, null), "Writer: Claude (browser)");
+  assert.equal(writerLabel({ provider: "none", model: "", baseUrl: "", remember: false }), "Writer: none · Judge: Jev (this server)"); // default judge, shown on Design B-1
+  assert.equal(writerLabel({ provider: "none", model: "", baseUrl: "", remember: false }, null, "none"), "Writer: none");
   ok("keys: sessionStorage by default, localStorage only with Remember, Forget clears both stores");
 }
 

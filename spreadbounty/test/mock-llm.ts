@@ -25,10 +25,11 @@ createServer(async (req, res) => {
   const start = user.indexOf("{"), end = user.lastIndexOf("}");
   const f = JSON.parse(user.slice(start, end + 1));
   if (!user.includes("must not appear")) return reply("<think>estimating</think>This should land around 97.5% coverage and roughly 12,345 USDC of depth.");
+  // the facts arrive with plain-word keys (src/ai/prompts.ts plainFacts)
   if (f.recommended) {
     const r = f.recommended;
-    return reply(`Go with a ${r.bandBps} bps band and a ${r.minRestBlocks}-block minimum rest at ${f.budgetPerDayUsdc} USDC per day. Over the last ${f.lastHours} hours ${f.history.makers} makers quoted, and this setting kept the book two-sided ${r.twoSidedCoveragePct}% of the time with about ${r.avgDepthUsdc} USDC on the thinner side. Watch concentration: the top maker would take ${r.topMakerSharePct}%.`);
+    return reply(`Go with a ${r["band bps"]} bps band and a ${r["min rest blocks"]}-block minimum rest at ${f["budget per day USDC"]} USDC per day. Over the last ${f["last hours"]} hours ${f.history.makers} makers quoted, and this setting kept the book two-sided ${r["two sided coverage %"]}% of the time with about ${r["average depth USDC"]} USDC on the thinner side. Watch concentration: the top maker would take ${r["top maker share %"]}%.`);
   }
-  const t = f.thisEpoch;
-  return reply(`Epoch ${t.epoch} kept ${f.pair} two-sided ${t.twoSidedCoveragePct}% of the time with ${t.avgTwoSidedDepthUsdc} USDC of depth on the thinner side, at ${t.costPer1kDepthUsdc} USDC per $1k of depth. ${t.makersPaid} makers were paid and the largest took ${t.topMakerSharePct}%. Keep the band and see whether more makers join.`);
+  const t = f["this epoch"], would = f.shadow ? "would have " : "";
+  return reply(`Epoch ${t.epoch} kept ${f.pair} two-sided ${t["two sided coverage %"]}% of the time with ${t["average two sided depth USDC"]} USDC of depth on the thinner side, at ${t["cost per 1k depth USDC"]} USDC per $1k of depth. ${t["makers rewarded"]} makers ${would}shared the rewards and the largest ${f.shadow ? "would have taken" : "took"} ${t["top maker share %"]}%. Keep the band and see whether more makers join.`);
 }).listen(PORT, () => console.log(`mock local model (OpenAI-compatible) on http://localhost:${PORT}/v1`));

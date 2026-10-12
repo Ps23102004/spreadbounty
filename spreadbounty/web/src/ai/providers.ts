@@ -5,7 +5,7 @@
  * main chunk's weight.
  */
 import type { HttpLLM } from "../../../src/ai/http";
-import type { ModelSettings, ProviderId } from "./keys";
+import { getJudgeMode, type JudgeMode, type ModelSettings, type ProviderId } from "./keys";
 
 interface Provider { label: string; short: string; baseUrl: string; needsKey: boolean; defaultModel: string }
 export const PROVIDERS: Record<ProviderId, Provider> = {
@@ -67,11 +67,23 @@ export async function listModels(s: ModelSettings, key: string, fetchImpl?: Fetc
   return llm.models();
 }
 
-/** Header chip text: "Writer: none", "Writer: gemma4 (browser)", "Writer: Claude (browser)". */
-export function writerLabel(s: ModelSettings, serverModel: string | null = null) {
-  if (s.provider === "none") return "Writer: none";
-  if (s.provider === "server") return `Writer: ${serverModel ?? "this server"} (server)`;
+export const JUDGE_LABELS: Record<JudgeMode, string> = {
+  none: "None",
+  server: "Jev on this server",
+  key: "Jev with your TypeSafe key",
+  local: "Local System One server (Von, Laya)",
+};
+const JUDGE_SHORT: Record<JudgeMode, string> = { none: "none", server: "Jev (this server)", key: "Jev (your key)", local: "System One (browser)" };
+
+/**
+ * "Writer: none", "Writer: gemma4 (browser)", "Writer: Claude (browser)", plus " · Judge: Jev (this server)" for the
+ * chosen judge (B-1 and A-5 lines). The header chip passes `judge: null` and stays short.
+ */
+export function writerLabel(s: ModelSettings, serverModel: string | null = null, judge: JudgeMode | null = getJudgeMode()) {
+  const j = judge && judge !== "none" ? ` · Judge: ${JUDGE_SHORT[judge]}` : "";
+  if (s.provider === "none") return `Writer: none${j}`;
+  if (s.provider === "server") return `Writer: ${serverModel ?? "this server"} (server)${j}`;
   const m = s.model.trim();
   const name = s.provider === "anthropic" ? "Claude" : m ? m.split("/").pop()!.split(":")[0]! : PROVIDERS[s.provider].short;
-  return `Writer: ${name} (browser)`;
+  return `Writer: ${name} (browser)${j}`;
 }

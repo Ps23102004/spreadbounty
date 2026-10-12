@@ -42,7 +42,7 @@ export function Provenance({ by, provider, model, attempts, where }: { by: "mode
       {by === "model" && <span className="badge good">Every number matched the data</span>}
       {rejected.length > 0 && (
         <span title={rejected.map((a) => a.ungrounded.join(", ")).join(" | ")}>
-          {by === "model" ? "Earlier draft" : `${rejected.length} model draft${rejected.length > 1 ? "s" : ""}`} rejected for invented numbers: <span className="mono">{rejected.flatMap((a) => a.ungrounded).slice(0, 4).join(", ")}</span>
+          {by === "model" ? "Earlier draft" : `${rejected.length} model draft${rejected.length > 1 ? "s" : ""}`} rejected for words or numbers not in the data: <span className="mono">{rejected.flatMap((a) => a.ungrounded).slice(0, 4).join(", ")}</span>
         </span>
       )}
     </div>

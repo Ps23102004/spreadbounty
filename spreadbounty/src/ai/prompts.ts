@@ -5,7 +5,7 @@
  * No node: imports and no SDK here (test/boundary.test.ts enforces it). Nothing here touches scoring or payouts.
  */
 import { z } from "zod";
-import { groundedText } from "./grounding";
+import { groundedText, textNumbers } from "./grounding";
 import type { LLM } from "./http";
 
 export const PAIRS = ["AUSD/USDC", "MON/USDC"] as const;
@@ -36,8 +36,19 @@ Plain sentences, no headings, no bullet points.`;
 
 export const REPORT_SYSTEM = `You write the epoch report a liquidity sponsor reads after each Spreadbounty epoch on Kuru (Monad's order book).
 Use only numbers that appear in the facts JSON, written the same way. Do not compute or estimate new numbers.
-Cover, in under 150 words of plain sentences: what the budget bought (two-sided coverage, depth inside the band, cost per $1k of depth), how concentrated the payouts were, what changed from the previous epoch if one is given, and one suggestion for the next epoch.
+Cover, in under 150 words of plain sentences: what the budget bought (two-sided coverage, depth inside the band, cost per $1k of depth), how concentrated the rewards were, what changed from the previous epoch if one is given, and one suggestion for the next epoch.
+If shadow is true, nobody was paid: the rewards are what makers would have earned. Write "would have earned", "would have shared" and "would have taken"; never say a maker was paid, took, earned or received anything.
 Do not repeat the payout root; it is shown separately.`;
+
+/** The budget the pipeline uses when the sentence names none. */
+export const DEFAULT_BUDGET_PER_DAY = 50;
+const BUDGET_NOTE = `Budget: ${DEFAULT_BUDGET_PER_DAY}/day (default, not in your sentence).`;
+/** A summary never presents the default budget as something the sponsor asked for. */
+const noteDefaultBudget = (i: Intent): Intent => {
+  if (i.budgetPerDay !== null && i.budgetPerDay > 0) return i;
+  const s = i.summary.trim();
+  return { ...i, summary: s ? `${s}${/[.!?]$/.test(s) ? "" : "."} ${BUDGET_NOTE}` : BUDGET_NOTE };
+};
 
 /** Rules-based reading for when no model is configured or the model returns nothing usable. */
 export function ruleIntent(goal: string): Intent {
@@ -50,19 +61,25 @@ export function ruleIntent(goal: string): Intent {
   const per = /(?:per|a|each|every|\/)\s*week|weekly/.test(g) ? 7 : /(?:per|a|each|every|\/)\s*month|monthly/.test(g) ? 30 : 1;
   const epoch = /hourly|per hour|every hour/.test(g) ? 60 : /daily epoch|per day epoch|daily payout/.test(g) ? 1440 : null;
   const ref = g.match(/(?:peg|reference|around|of)\s*\$?(\d\.\d+)/);
-  return {
+  return noteDefaultBudget({
     pair,
     bandBps: bps ? Number(bps[1]) : pct ? Number(pct[1]) * 100 : null,
     budgetPerDay: amount === null ? null : amount / per,
     epochMinutes: epoch,
     refPrice: ref ? Number(ref[1]) : null,
     summary: goal.trim().slice(0, 200),
-  };
+  });
 }
 
 /** The model fills gaps the rules missed; explicit numbers found by rules win (they are literal reads of the text). */
 export const mergeIntent = (fromModel: Intent, rules: Intent): Intent =>
-  ({ ...fromModel, ...Object.fromEntries(Object.entries(rules).filter(([k, v]) => v !== null && k !== "summary")) }) as Intent;
+  noteDefaultBudget({ ...fromModel, ...Object.fromEntries(Object.entries(rules).filter(([k, v]) => v !== null && k !== "summary")) } as Intent);
+
+/** Numbers the sponsor wrote, and the form read from them: a brief that repeats their "0.25%" invents nothing. */
+export const requestNumbers = (goal: string, intent: Intent) => [
+  ...textNumbers(goal).map((n) => n.value),
+  ...[intent.bandBps, intent.budgetPerDay, intent.epochMinutes, intent.refPrice].filter((x): x is number => x !== null),
+];
 
 const errorText = (e: unknown) => String((e as Error)?.message ?? e).slice(0, 200);
 
@@ -78,14 +95,24 @@ export async function readIntent(goal: string, llm: LLM | null) {
   }
 }
 
-export const factsPrompt = (facts: unknown, feedback: string | null) => `Facts (JSON):\n${JSON.stringify(facts)}${feedback ? `\n\n${feedback}` : ""}`;
+/** A fact key as plain words: "twoSidedCoveragePct" -> "two sided coverage %", so the model has no field name to copy. */
+const plainKey = (k: string) =>
+  k.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([a-z])(\d)/g, "$1 $2").toLowerCase()
+    .replace(/\bpct\b/g, "%").replace(/\busdc\b/g, "USDC").replace(/\bavg\b/g, "average");
+export const plainFacts = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(plainFacts) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [plainKey(k), plainFacts(x)])) : v;
 
-/** Model text if every number in it is in the facts (one retry naming the bad numbers), else the template. */
-export async function narrate(llm: LLM | null, system: string, facts: unknown, template: string) {
+export const factsPrompt = (facts: unknown, feedback: string | null) => `Facts (JSON):\n${JSON.stringify(plainFacts(facts))}${feedback ? `\n\n${feedback}` : ""}`;
+
+/**
+ * Model text if every number in it is in the facts or `extraAllowed` (the sponsor's own numbers) and it copies no field
+ * name (one retry naming the bad tokens), else the template.
+ */
+export async function narrate(llm: LLM | null, system: string, facts: unknown, template: string, extraAllowed: number[] = []) {
   let attempts: { ungrounded: string[] }[] = [];
   if (!llm) return { text: template, by: "template" as const, attempts, error: null };
   try {
-    const g = await groundedText((fb) => llm.text(system, factsPrompt(facts, fb)), facts);
+    const g = await groundedText((fb) => llm.text(system, factsPrompt(facts, fb)), facts, extraAllowed);
     attempts = g.attempts;
     if (g.text) return { text: g.text, by: "model" as const, attempts, error: null };
     return { text: template, by: "template" as const, attempts, error: null };

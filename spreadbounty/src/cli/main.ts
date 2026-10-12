@@ -10,6 +10,7 @@
  */
 import "dotenv/config";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { buildEpoch, epochMetrics, epochRange, verifyEpoch, type Campaign, type EpochFile } from "../core/epoch";
 import { CHAIN_ID, DEFAULT_RPC, USDC } from "../core/chain";
 import { blockHashes, fetchBookLogs, provider, readMarket } from "../core/fetch";
@@ -150,7 +151,10 @@ async function main() {
       const f = readJson<EpochFile>(args[0]!);
       const prevPath = args[0]!.replace(/epoch-(\d+)\.json$/, (_, n) => `epoch-${Number(n) - 1}.json`);
       const prev = f.epoch > 0 && existsSync(prevPath) ? readJson<EpochFile>(prevPath) : null;
-      const r = await writeEpochReport(f, prev, getLLM());
+      // shadow campaigns paid nobody; the flag sits on the campaign file next to the epoch directory
+      const campaignFile = join(dirname(dirname(args[0]!)), `campaign-${f.campaign.id}.json`);
+      const shadow = existsSync(campaignFile) && readJson<{ shadow?: boolean }>(campaignFile).shadow === true;
+      const r = await writeEpochReport(f, prev, getLLM(), shadow);
       const out = args[0]!.replace(".json", ".report.md");
       writeFileSync(out, `${r.markdown}\n\nPayout root: \`${r.root}\`\n`);
       console.log(`${r.markdown}\n\nwritten by: ${r.ai.writtenBy} | wrote ${out}`);

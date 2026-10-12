@@ -1,11 +1,23 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { Config } from "../api";
-import { forgetKeys, getKey, loadSettings, saveSettings, setKey, SETTINGS_EVENT, type ModelSettings, type ProviderId } from "../ai/keys";
+import {
+  forgetKeys, getJudgeKey, getJudgeMode, getJudgeUrl, getKey, judgeKeyRemembered, loadSettings, saveSettings, setJudgeKey, setJudgeMode, setJudgeUrl, setKey,
+  SETTINGS_EVENT, type JudgeMode, type ModelSettings, type ProviderId,
+} from "../ai/keys";
 import "../ai/model-dialog.css";
-import { endpointHost, listModels, LOCAL_PRESETS, PROVIDERS, testConnection, writerLabel } from "../ai/providers";
+import { endpointHost, JUDGE_LABELS, listModels, LOCAL_PRESETS, PROVIDERS, testConnection, writerLabel } from "../ai/providers";
 
 type ServerAi = Config["ai"] | null;
 const BROWSER: ProviderId[] = ["anthropic", "openai", "gemini", "openrouter", "local"];
+const JUDGES: JudgeMode[] = ["none", "server", "key", "local"];
+const LOCAL_JUDGE_URL = "http://localhost:8770/v1/systemone";
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "the URL above";
+  }
+};
 
 /** The Writer settings, kept fresh when the dialog (or another tab) changes them. */
 export function useWriterSettings(): ModelSettings {
@@ -30,7 +42,7 @@ export function ModelChip({ serverAi }: { serverAi: ServerAi }) {
   return (
     <>
       <button ref={chip} type="button" className="chip md-chip" aria-haspopup="dialog" onClick={() => setOpen(true)}>
-        {writerLabel(s, serverAi?.model ?? null)}
+        {writerLabel(s, serverAi?.model ?? null, null)}
       </button>
       <ModelDialog open={open} onClose={() => { setOpen(false); chip.current?.focus(); }} serverAi={serverAi} />
     </>
@@ -45,6 +57,11 @@ export function ModelDialog({ open, onClose, serverAi }: { open: boolean; onClos
   const [showKey, setShowKey] = useState(false);
   const [test, setTest] = useState<"running" | Awaited<ReturnType<typeof testConnection>> | null>(null);
   const [models, setModels] = useState<{ list: string[]; error: string | null; busy: boolean }>({ list: [], error: null, busy: false });
+  const judge = getJudgeMode(); // read on each render: every keys.ts write fires SETTINGS_EVENT, which re-renders via useWriterSettings
+  const [judgeKey, setJudgeKeyText] = useState(getJudgeKey);
+  const [judgeRemember, setJudgeRemember] = useState(judgeKeyRemembered);
+  const [showJudgeKey, setShowJudgeKey] = useState(false);
+  const [judgeUrl, setJudgeUrlText] = useState(() => getJudgeUrl() || LOCAL_JUDGE_URL);
 
   useEffect(() => {
     const d = ref.current;
@@ -71,6 +88,24 @@ export function ModelDialog({ open, onClose, serverAi }: { open: boolean; onClos
     setKeyText(v);
     setKey(s.provider, v, s.remember);
     setTest(null);
+  };
+  const onJudgeKey = (v: string, remember = judgeRemember) => {
+    setJudgeKeyText(v);
+    setJudgeRemember(remember);
+    setJudgeKey(v, remember);
+  };
+  const onJudgeUrl = (v: string) => {
+    setJudgeUrlText(v);
+    setJudgeUrl(v);
+  };
+  const pickJudge = (m: JudgeMode) => {
+    if (m === "local" && !getJudgeUrl()) setJudgeUrl(judgeUrl); // the shown default counts as set
+    setJudgeMode(m);
+  };
+  const forget = () => {
+    forgetKeys();
+    setKeyText("");
+    setJudgeKeyText("");
   };
   const runTest = async () => {
     setTest("running");
@@ -151,10 +186,12 @@ export function ModelDialog({ open, onClose, serverAi }: { open: boolean; onClos
                 <input type="checkbox" checked={s.remember} onChange={(e) => update({ remember: e.target.checked })} />
                 <span>Remember on this device</span>
               </label>
-              <button type="button" className="btn ghost small" onClick={() => { forgetKeys(); setKeyText(""); }}>Forget key</button>
+              <button type="button" className="btn ghost small" onClick={forget}>Forget key</button>
             </div>
             <p className="md-privacy">
-              {key || p.needsKey ? `Your key goes from this browser to ${host}. This server never receives it.` : `Requests go from this browser to ${host}. This server never sees them.`}
+              {key || p.needsKey
+                ? `Your key goes from this browser to ${host}. This server never receives it.`
+                : `Model calls go from this browser to ${host}. This server still gets your sentence and the form read from it, to run the backtest.`}
               {key && (s.remember ? " The key stays on this device until you forget it." : " The key is forgotten when this tab closes.")}
             </p>
           </div>
@@ -166,6 +203,53 @@ export function ModelDialog({ open, onClose, serverAi }: { open: boolean; onClos
               {test && test !== "running" && (test.ok ? `✓ Answered in ${test.latencyMs} ms · model ${test.model}` : `✕ ${test.message}`)}
             </span>
           </div>
+        </div>
+      )}
+
+      <fieldset className="md-set md-judge">
+        <legend className="label">Judge</legend>
+        <p className="md-hint">Optional. Checks your sentence and any model-written text with yes/no and pick-one questions. It never changes a number.</p>
+        {JUDGES.map((v) => (
+          <label key={v} className="md-option">
+            <input type="radio" name={`${id}-judge`} checked={judge === v} onChange={() => pickJudge(v)} />
+            <span>{JUDGE_LABELS[v]}</span>
+          </label>
+        ))}
+      </fieldset>
+
+      {judge === "none" && <p className="md-note">No judge: nothing is flagged, and no text is sent anywhere for a check.</p>}
+      {judge === "server" && (
+        <p className="md-note">Your sentence, and any brief or report a model wrote with its facts, go to this server, which asks TypeSafe Jev with the operator's key. If the operator set no key, no judge runs.</p>
+      )}
+      {judge === "key" && (
+        <div className="md-form">
+          <div className="md-field">
+            <label className="label" htmlFor={`${id}-jkey`}>TypeSafe key</label>
+            <div className="md-inline">
+              <input id={`${id}-jkey`} type={showJudgeKey ? "text" : "password"} value={judgeKey} onChange={(e) => onJudgeKey(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="off" />
+              <button type="button" className="btn ghost small" aria-pressed={showJudgeKey} onClick={() => setShowJudgeKey(!showJudgeKey)}>{showJudgeKey ? "Hide" : "Show"}</button>
+            </div>
+            <div className="md-inline">
+              <label className="md-check">
+                <input type="checkbox" checked={judgeRemember} onChange={(e) => onJudgeKey(judgeKey, e.target.checked)} />
+                <span>Remember on this device</span>
+              </label>
+              <button type="button" className="btn ghost small" onClick={forget}>Forget key</button>
+            </div>
+            <p className="md-privacy">
+              TypeSafe doesn't accept calls from browsers, so this key passes through this server for each request, to api.typesafe.ai only. It is never stored or logged.
+              {judgeKey ? (judgeRemember ? " The key stays on this device until you forget it." : " The key is forgotten when this tab closes.") : " With no key, no judge runs."}
+            </p>
+          </div>
+        </div>
+      )}
+      {judge === "local" && (
+        <div className="md-form">
+          <label className="md-field">
+            <span className="label">System One URL</span>
+            <input type="url" value={judgeUrl} onChange={(e) => onJudgeUrl(e.target.value)} spellCheck={false} autoComplete="off" inputMode="url" />
+          </label>
+          <p className="md-privacy">Your sentence and any model-written text go from this browser to {hostOf(judgeUrl)}, with no key. This server's judge is not asked.</p>
         </div>
       )}
     </dialog>
