@@ -1,9 +1,12 @@
 import { ethers } from "ethers";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_RPC } from "../../../src/core/chain";
 import { verifyEpoch, type EpochFile } from "../../../src/core/epoch";
+import { blockHashes } from "../../../src/core/fetch";
 import type { RawLog } from "../../../src/core/rpc";
 import { merkleRoot } from "../../../src/core/score";
 import { api, fmt, type CampaignRow, type Config, type EpochSummary } from "../api";
+import { BUNDLE_NOTE, rpcLogs, type LogSource } from "./logSource";
 import { makePacer, type TapeLine } from "./pacer";
 
 /** Add 1 token to the top maker's payout and rebuild a self-consistent Merkle root: what a dishonest operator would publish. */
@@ -69,6 +72,8 @@ const STOP = Symbol("stale run");
 /**
  * Downloads the epoch files and logs, picks the block-hash source, runs `recompute`, and prints each finished
  * step on the tape. Changing the epoch or the forge switch clears the result and cancels a run in flight.
+ * Logs (B1, delta): on mainnet data (a live server, or a `shadow: true` campaign) they come straight from the Monad
+ * RPC by default; if the RPC keeps failing, `logSource` switches to the server bundle and Retry uses it, with its note.
  */
 export function useRecompute(campaign: CampaignRow | null, config: Config | null) {
   const [epochs, setEpochs] = useState<EpochSummary[] | null>(null);
@@ -80,7 +85,11 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const runId = useRef(0);
-  const demo = config?.dataSource !== "live";
+  const onChain = config?.dataSource === "live" || !!(campaign as { shadow?: boolean } | null)?.shadow;
+  const demo = !onChain;
+  const [sourcePick, setLogSource] = useState<LogSource | null>(null);
+  const logSource: LogSource = onChain ? sourcePick ?? "rpc" : "bundle";
+  const rpcUrl = config?.rpcUrl ?? DEFAULT_RPC;
 
   const clear = useCallback(() => {
     runId.current++;
@@ -93,6 +102,7 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
   const loadEpochs = useCallback(() => {
     if (!campaign) return;
     clear();
+    setLogSource(null);
     setEpochs(null);
     api.epochs(campaign.id)
       .then((es) => { setEpochs(es); setN(es.length ? es[es.length - 1]!.n : null); })
@@ -113,29 +123,47 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
     setChecks([]);
     const list: TapeLine[] = [];
     const pace = makePacer();
+    /** Print a line now, or reprint the line with the same id (progress). */
+    const put = (l: TapeLine) => {
+      if (id !== runId.current) return;
+      const i = list.findIndex((x) => x.id === l.id);
+      if (i >= 0) list[i] = l;
+      else list.push(l);
+      setLines([...list]);
+    };
     const push = async (l: TapeLine) => {
       await pace();
       if (id !== runId.current) throw STOP;
-      list.push(l);
-      setLines([...list]);
+      put(l);
     };
+    let rpcFailed = false;
     const dec = 10 ** campaign.rewardDecimals;
     const quote = campaign.pair.split("/")[1] ?? "";
     try {
       const files = await Promise.all(Array.from({ length: n + 1 }, (_, k) => api.epoch(campaign.id, k)));
       await push({ id: "files", fig: String(files.length), text: `epoch file${files.length === 1 ? "" : "s"} downloaded`, sym: "#" });
-      const logs = await api.logs(campaign.id, n);
-      await push({ id: "logs", fig: fmt.n(logs.length), text: "order logs", sym: "#" });
+      let logs: RawLog[];
+      const host = new URL(rpcUrl).host;
+      if (logSource === "rpc") {
+        logs = await rpcLogs(rpcUrl, campaign.market, campaign.replayFromBlock, files[n]!.toBlock, {
+          stale: () => id !== runId.current,
+          progress: (d, t) => put({ id: "logs", fig: `${d}/${t}`, text: `eth_getLogs to ${host}, 100 blocks each`, sym: "#" }),
+          retry: (req, err) => put({ id: "retry", fig: "retry", text: `${req} failed (${err}); backing off`, sym: "#" }),
+        }).catch((e) => { rpcFailed = true; throw e; });
+        await push({ id: "logs", fig: fmt.n(logs.length), text: `order logs from ${host}, direct`, sym: "#" });
+      } else {
+        logs = await api.logs(campaign.id, n);
+        await push({ id: "logs", fig: fmt.n(logs.length), text: "order logs", sym: "#" });
+        if (onChain) await push({ id: "trust", fig: "bundle", text: BUNDLE_NOTE, sym: "#" });
+      }
       let hash: (b: number) => Promise<string>;
       if (demo) {
         hash = async (b) => ethers.utils.id(`spreadbounty-demo-block-${b}`);
         await push({ id: "hash", fig: "keccak", text: "block hashes, demo formula", sym: "#" });
       } else {
-        const p = new ethers.providers.StaticJsonRpcProvider(config.rpcUrl!, 143);
-        const cache = new Map<number, string>();
-        hash = async (b) => cache.get(b) ?? (await p.getBlock(b).then((x) => (cache.set(b, x.hash), x.hash)));
+        hash = blockHashes(new ethers.providers.StaticJsonRpcProvider(rpcUrl, 143)); // cached, retried
         await hash(files[n]!.toBlock);
-        await push({ id: "hash", fig: "rpc", text: "block hashes from the RPC", sym: "#" });
+        await push({ id: "hash", fig: "rpc", text: `block hashes from ${host}`, sym: "#" });
       }
       const out = await recompute(files, logs, hash, forged, async (c) => {
         if (id !== runId.current) throw STOP;
@@ -156,10 +184,15 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
       if (id === runId.current) setOutcome(out);
     } catch (e: any) {
       if (e === STOP) return;
-      if (id === runId.current) setError(String(e?.message ?? e));
+      if (id === runId.current && rpcFailed) {
+        // offer the server bundle: Retry now reads it, and says so on the tape
+        setLogSource("bundle");
+        put({ id: "retry", fig: "failed", text: String(e?.message ?? e), sym: "≠", red: true });
+        setError(`The Monad RPC kept failing after retries with backoff: ${e?.message ?? e}. Retry recomputes from the server's bundle instead (${BUNDLE_NOTE}).`);
+      } else if (id === runId.current) setError(String(e?.message ?? e));
     }
     if (id === runId.current) setBusy(false);
   };
 
-  return { epochs, n, pick, forged, setForged, run, busy, lines, checks, outcome, error, demo, reload: loadEpochs };
+  return { epochs, n, pick, forged, setForged, run, busy, lines, checks, outcome, error, demo, reload: loadEpochs, logSource, setLogSource, rpcUrl };
 }

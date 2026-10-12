@@ -27,7 +27,7 @@ export function liveSource(): DataSource {
   const hash = blockHashes(p);
   return {
     kind: "live",
-    dir: "out",
+    dir: process.env.DATA_DIR ?? "out", // B1: DATA_DIR=data/shadow serves the committed shadow campaign
     market: (m) => readMarket(p, m),
     head: () => p.getBlockNumber(),
     logs: (market, from, to) => fetchBookLogs(p, resolveMarket(market), from, to),
