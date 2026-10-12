@@ -22,7 +22,7 @@
     "test:drop": "npm run --silent demo:gen && tsx test/drop.test.ts",
     "localchain": "tsx test/local-chain.ts",
     "test:all": "npm test && npm run test:boundary && npm run test:ai && npm run test:bot && npm run test:drop && npm run test:server && npm run test:web && npm run test:judge",
-    "test:boundary": "tsx test/boundary.test.ts",
+    "test:boundary": "npm run --silent build:web && tsx test/boundary.test.ts",
     "test:server": "npm run --silent demo:gen && tsx test/server.test.ts",
     "test:web": "npm run --silent demo:gen && tsx test/web.test.ts",
     "test:judge": "npm run --silent demo:gen && tsx test/judge.test.ts"
