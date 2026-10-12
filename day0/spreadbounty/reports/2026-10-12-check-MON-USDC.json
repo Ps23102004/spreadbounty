@@ -1,0 +1,114 @@
+{
+  "mode": "check",
+  "market": "0x065C9d28E428A0db40191a54d33d5b7c71a9C394",
+  "config": {
+    "rpcUrl": "https://rpc.monad.xyz",
+    "market": "0x065C9d28E428A0db40191a54d33d5b7c71a9C394",
+    "refPrice": null,
+    "bandBps": 5,
+    "scoreBandBps": 15,
+    "orderSize": 10,
+    "takerQuote": 5,
+    "minReserveMon": 11,
+    "maxTickBps": 5,
+    "lookbackBlocks": 2000,
+    "sampleEvery": 200,
+    "minRestBlocks": 20
+  },
+  "results": [
+    {
+      "step": "1a market params",
+      "status": "INFO",
+      "detail": "MON/USDC pricePrecision=100000000 sizePrecision=10000000000 tick=100 minSize=2000000000000 maxSize=2000000000000000000 fees maker/taker=0/0 bps"
+    },
+    {
+      "step": "1b verified Kuru market",
+      "status": "PASS",
+      "detail": "Router.verifiedMarket=true, MarginAccount.verifiedMarket=true"
+    },
+    {
+      "step": "1c live top of book",
+      "status": "INFO",
+      "detail": "bestBidAsk (assumed 1e18-scaled) bid=0.026686 ask=0.026728"
+    },
+    {
+      "step": "1d tick size",
+      "status": "PASS",
+      "detail": "tick = 0.374 bps at price 0.026707 (go rule <= 5 bps)"
+    },
+    {
+      "step": "1e AMM vault",
+      "status": "INFO",
+      "detail": "vault 0x838c2d3fD4DB5eB2F185cbE7697fbaAce52b34d7: bid 0.02302384425779098 x 0, ask 0.023092915790564353 x 0, spread 30 -> not quoting (zero sizes)"
+    },
+    {
+      "step": "2 implementation",
+      "status": "PASS",
+      "detail": "EIP-1967 impl=0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0, Router.orderBookImplementation=0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0, expected 0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0"
+    },
+    {
+      "step": "5 replay vs s_orders",
+      "status": "PASS",
+      "detail": "5913 book logs in blocks 112652992..112654992; 8 live orders replayed; 8/8 match s_orders at 112654992 (100.0%)"
+    },
+    {
+      "step": "6 root determinism",
+      "status": "PASS",
+      "detail": "10 sample blocks, 1 scored makers; root A=0x1f3dc74808500bba2c8703e04f64af5cff6cec33e60c4a0e532b1f5978637a56 root B=0x1f3dc74808500bba2c8703e04f64af5cff6cec33e60c4a0e532b1f5978637a56; log sets identical=true"
+    }
+  ],
+  "txs": {},
+  "samples": [
+    {
+      "block": 112653145,
+      "mid": "2676750",
+      "scored": 0
+    },
+    {
+      "block": 112653293,
+      "mid": "2674850",
+      "scored": 0
+    },
+    {
+      "block": 112653525,
+      "mid": "2675350",
+      "scored": 1
+    },
+    {
+      "block": 112653759,
+      "mid": "2674050",
+      "scored": 1
+    },
+    {
+      "block": 112653822,
+      "mid": "2673350",
+      "scored": 1
+    },
+    {
+      "block": 112654012,
+      "mid": "2672800",
+      "scored": 1
+    },
+    {
+      "block": 112654228,
+      "mid": "2673850",
+      "scored": 1
+    },
+    {
+      "block": 112654476,
+      "mid": "2677750",
+      "scored": 0
+    },
+    {
+      "block": 112654678,
+      "mid": "2682600",
+      "scored": 1
+    },
+    {
+      "block": 112654955,
+      "mid": "2671850",
+      "scored": 0
+    }
+  ],
+  "verdict": "read-only checks pass -> run `npm run full -- --yes`"
+}
