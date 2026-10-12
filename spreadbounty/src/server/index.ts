@@ -14,7 +14,7 @@ import { DEFAULT_RPC } from "../core/chain";
 import { epochMetrics, type Campaign, type EpochFile } from "../core/epoch";
 import { leafHash, merkleProof, verifyProof } from "../core/score";
 import { aiConfig, getLLM } from "../ai/llm";
-import { designCampaign, PAIRS } from "../ai/pipeline";
+import { designCampaign, IntentSchema, PAIRS } from "../ai/pipeline";
 import { writeEpochReport } from "../ai/report";
 import { getSource, recentHistory } from "../data/source";
 import { compareStrategies } from "../bot/sim";
@@ -121,7 +121,8 @@ async function botSim(id: string, n: number, size: number) {
   return out;
 }
 
-const CopilotIn = z.object({ goal: z.string().min(3).max(1000) });
+// A6 (gamma) server edit 1 of 1, rebase onto beta's A4: optional browser-read intent and brief mode for BYO-model runs.
+const CopilotIn = z.object({ goal: z.string().min(3).max(1000), intent: IntentSchema.optional(), brief: z.enum(["server", "none"]).optional() });
 const PublishIn = z.object({ campaign: z.record(z.string(), z.unknown()), rationale: z.string().max(4000).optional() });
 
 async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
@@ -168,7 +169,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     res.writeHead(200, { "content-type": "application/x-ndjson", "cache-control": "no-store" });
     const line = (o: unknown) => res.write(JSON.stringify(o) + "\n");
     try {
-      const r = await designCampaign(parsed.data.goal, src, getLLM(), (s) => line({ type: "step", ...s }));
+      const { goal, intent, brief } = parsed.data; // A6 (gamma): pass-through of the optional fields above
+      const r = await designCampaign(goal, src, getLLM(), (s) => line({ type: "step", ...s }), { intent, brief });
       line({ type: "result", ...r });
     } catch (e: any) {
       line({ type: "error", error: String(e?.message ?? e) });
