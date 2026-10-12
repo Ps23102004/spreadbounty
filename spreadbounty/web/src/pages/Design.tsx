@@ -240,8 +240,8 @@ function stepLine(s: StepNote, who: string | undefined): TapeLine | null {
   const d = s.detail ?? "";
   if (s.step === "intent") {
     try {
-      const o = JSON.parse(d) as { pair: string | null; bandBps: number | null; budgetPerDay: number; epochMinutes: number };
-      return { id: "intent", fig: o.pair ?? "no pair", text: `request read by ${who ?? "rules"} · band ${o.bandBps ? `${o.bandBps} bps` : "open"} · ${o.budgetPerDay}/day · ${o.epochMinutes}-min epochs`, sym: "#" };
+      const o = JSON.parse(d) as { pair: string | null; bandBps: number | null; budgetPerDay: number; epochMinutes: number; budgetDefault?: boolean };
+      return { id: "intent", fig: o.pair ?? "no pair", text: `request read by ${who ?? "rules"} · band ${o.bandBps ? `${o.bandBps} bps` : "open"} · ${o.budgetPerDay}/day${o.budgetDefault ? " (default, not in your sentence)" : ""} · ${o.epochMinutes}-min epochs`, sym: "#" };
     } catch {
       return { id: "intent", fig: "request", text: d || "read", sym: "#" };
     }

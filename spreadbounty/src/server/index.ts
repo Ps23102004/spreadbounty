@@ -222,7 +222,8 @@ async function copilot(req: IncomingMessage, res: ServerResponse, ctx: Ctx) {
 async function epochReport(_url: URL, ctx: Ctx, id: string, n: number, e: EpochFile) {
   const prevPath = epochPath(ctx.src, id, n - 1);
   const prev = n > 0 && existsSync(prevPath) ? readJson<EpochFile>(prevPath) : null;
-  return writeEpochReport(e, prev, ctx.llm());
+  const shadow = (() => { try { return readJson<{ shadow?: boolean }>(campaignPath(ctx.src, id)).shadow === true; } catch { return false; } })(); // epoch files do not carry the flag
+  return writeEpochReport(e, prev, ctx.llm(), shadow);
 }
 
 // ---- B2 (gamma2): POST /api/judge, the decision model. Begin marked edit. ----
