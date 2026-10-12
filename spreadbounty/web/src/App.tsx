@@ -127,12 +127,6 @@ export function App() {
             <button className="btn small" onClick={load}>Retry</button>
           </div>
         )}
-        {(page === "makers" || page === "claim") && (
-          <nav className="subtabs" aria-label="Make markets">
-            <a href="#makers" aria-current={page === "makers" ? "page" : undefined}>Backtest and run</a>
-            <a href="#claim" aria-current={page === "claim" ? "page" : undefined}>Claim</a>
-          </nav>
-        )}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={page}
@@ -151,7 +145,7 @@ export function App() {
         </AnimatePresence>
       </main>
 
-      <footer>
+      <footer className="site-foot">
         <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap", alignItems: "flex-start" }}>
           <p>Payouts come from public Kuru order logs and open code. Models read requests and explain verified numbers; they never score or pay.</p>
           <span className="theme-foot">{themeBtn}</span>

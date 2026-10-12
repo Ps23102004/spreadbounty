@@ -1,12 +1,14 @@
 import { AnimatePresence, motion } from "motion/react";
 import { EASE_ENTER, T } from "./motion";
+import { makePacer, type TapeLine } from "./pacer";
 
 /**
  * The adding-machine tape. A line exists only once its step has finished; the caller pushes it.
  * Right-hand symbols as on a real machine: # count or id (non-add), + sum, ◇ subtotal, * final total, ≠ mismatch.
  * Mismatch lines print in the red half of the ribbon.
  */
-export interface TapeLine { id: string; fig: string; text: string; sym: "#" | "+" | "◇" | "*" | "≠"; red?: boolean }
+export type { TapeLine };
+export { makePacer };
 
 export function Tape({ lines, rows, empty, label }: { lines: TapeLine[]; rows?: number; empty: string; label: string }) {
   return (
@@ -32,20 +34,4 @@ export function Tape({ lines, rows, empty, label }: { lines: TapeLine[]; rows?: 
       </ol>
     </div>
   );
-}
-
-/**
- * Display pacing for the tape: holds at least `gap` ms between lines so fast steps stay readable,
- * and never adds more than `budget` ms in total. Await it before pushing a finished line.
- */
-export function makePacer(gap = 90, budget = 1000) {
-  let last = 0;
-  let spent = 0;
-  return async () => {
-    const now = performance.now();
-    const wait = Math.min(last ? Math.max(0, last + gap - now) : 0, Math.max(0, budget - spent));
-    spent += wait;
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    last = performance.now();
-  };
 }

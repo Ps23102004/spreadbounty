@@ -217,7 +217,7 @@ export function QuoteProbe({ mid, pricePrecision: P, tick, bandBps, decimals, re
           ? <>Inside the band. Weight <b>{w.twoSided.toFixed(2)}</b> of the top score with a matching {bps > 0 ? "bid" : "ask"}, <b>{w.oneSided.toFixed(2)}</b> on its own.</>
           : <>Outside the band: earns nothing.</>}</p>
       </div>
-      <p className="probe-note">Quote one side only and the score is a third. Tight and two-sided wins. Illustration on the current book; no order is placed.</p>
+      <p className="probe-note">One side alone scores a third. Illustration only; no order is placed.</p>
     </div>
   );
 }

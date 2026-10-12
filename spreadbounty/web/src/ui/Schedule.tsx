@@ -5,7 +5,7 @@ export function PageHead({ wp, title, children }: { wp: string; title: string; c
   return (
     <div className="wp">
       <span className="wp-ref"><b>W/P {wp}</b>{title}</span>
-      {children && <span className="row" style={{ gap: 8 }}>{children}</span>}
+      {children && <div className="row" style={{ gap: 8 }}>{children}</div>}
     </div>
   );
 }
@@ -49,5 +49,15 @@ export function ErrorNote({ children, onRetry }: { children: ReactNode; onRetry?
       <span>{children}</span>
       {onRetry && <button className="btn small ghost" onClick={onRetry}>Retry</button>}
     </div>
+  );
+}
+
+/** Make markets sub-tabs; #claim deep-links here and keeps the Make markets index tab lit. */
+export function MarketTabs({ on }: { on: "makers" | "claim" }) {
+  return (
+    <nav className="subtabs" aria-label="Make markets">
+      <a href="#makers" aria-current={on === "makers" ? "page" : undefined}>Backtest and run</a>
+      <a href="#claim" aria-current={on === "claim" ? "page" : undefined}>Claim</a>
+    </nav>
   );
 }
