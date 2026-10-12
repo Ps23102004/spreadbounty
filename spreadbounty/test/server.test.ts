@@ -10,6 +10,7 @@ import type { AddressInfo } from "node:net";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ethers } from "ethers";
 import { createApp } from "../src/server/index";
 import { DEMO_DIR, demoSource, type DataSource } from "../src/data/source";
 
@@ -40,15 +41,17 @@ const src: DataSource = {
 const serverLog: string[] = [];
 const servers: Server[] = [];
 let clock = Date.now();
-async function boot(env: Record<string, string> = {}) {
-  const app = createApp({ src, env: { TRUST_PROXY: "1", ...env }, now: () => clock, log: (m) => serverLog.push(m) });
+const SECRET = "test-session-secret-0123456789abcdef0123456789";
+async function boot(env: Record<string, string> = {}, data: DataSource = src) {
+  const app = createApp({ src: data, env: { TRUST_PROXY: "1", SESSION_SECRET: SECRET, ...env }, now: () => clock, log: (m) => serverLog.push(m) });
   servers.push(app);
   await new Promise<void>((r) => app.listen(0, "127.0.0.1", r));
   return `http://127.0.0.1:${(app.address() as AddressInfo).port}`;
 }
-const json = (body: unknown, ip: string, extra: Record<string, string> = {}): RequestInit => ({
+const jsonReq = (body: unknown, ip: string, extra: Record<string, string> = {}): RequestInit => ({
   method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": ip, ...extra }, body: typeof body === "string" ? body : JSON.stringify(body),
 });
+const json = jsonReq;
 const from = (ip: string): RequestInit => ({ headers: { "x-forwarded-for": ip } });
 const campaignFiles = () => readdirSync(dir).filter((f) => f.startsWith("campaign-")).sort();
 /** A publishable campaign body for the demo AUSD/USDC book (the demo campaign minus its rationale). */
@@ -56,6 +59,16 @@ const demoCampaign = (): Record<string, unknown> => {
   const { rationale: _r, ...c } = JSON.parse(readFileSync(`${dir}/campaign-ausd-usdc-demo.json`, "utf8"));
   return c;
 };
+
+/** Full SIWE round trip with a local wallet; returns the `sb_sess=...` cookie pair. */
+async function signIn(base: string, wallet: ethers.Wallet, ip: string) {
+  const c = await (await fetch(`${base}/api/auth/nonce?address=${wallet.address}`, from(ip))).json();
+  const r = await fetch(base + "/api/auth/verify", json({ nonce: c.nonce, signature: await wallet.signMessage(c.message) }, ip));
+  assert.equal(r.status, 200, "sign-in");
+  await r.text();
+  return r.headers.get("set-cookie")!.split(";")[0]!;
+}
+const sponsor = ethers.Wallet.createRandom();
 
 /** A raw HTTP/1.1 request, for request targets fetch() refuses to send. */
 function raw(url: string, request: string): Promise<string> {
@@ -190,11 +203,16 @@ ok("bodies: 17 KB -> 413 (with and without content-length), text/plain -> 415, f
 }
 ok("rate limits: 7th copilot call in a minute -> 429 + Retry-After; third concurrent copilot run -> 429");
 
-// ---------- 6. publish: strict schema; junk on disk cannot break /api/book ----------
+// ---------- 6. publish: session required; strict schema; junk on disk cannot break /api/book ----------
 {
   const before = campaignFiles();
+  const anon = await fetch(url + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: "ausd-usdc-1" } }, "10.6.0.1"));
+  assert.equal(anon.status, 401);
+  await anon.text();
+  const cookie = await signIn(url, sponsor, "10.6.0.1");
+  const authed = (body: unknown, ip: string) => jsonReq(body, ip, { cookie });
   const { market: _m, ...noMarket } = demoCampaign();
-  const r = await fetch(url + "/api/campaigns", json({ campaign: { ...noMarket, id: "ausd-usdc-1" } }, "10.6.0.1"));
+  const r = await fetch(url + "/api/campaigns", authed({ campaign: { ...noMarket, id: "ausd-usdc-1" } }, "10.6.0.1"));
   assert.equal(r.status, 400);
   assert.match((await r.json()).error, /market/);
   for (const bad of [
@@ -206,7 +224,7 @@ ok("rate limits: 7th copilot call in a minute -> 429 + Retry-After; third concur
     { ...demoCampaign(), id: "ausd-usdc-6", budgetPerEpoch: "1e30" },
     { ...demoCampaign(), id: "ausd-usdc-7", rewardToken: "0x0000000000000000000000000000000000000001" },
   ]) {
-    const rb = await fetch(url + "/api/campaigns", json({ campaign: bad }, "10.6.0.1"));
+    const rb = await fetch(url + "/api/campaigns", authed({ campaign: bad }, "10.6.0.1"));
     assert.equal(rb.status, 400, JSON.stringify(bad).slice(0, 80));
     await rb.text();
   }
@@ -222,7 +240,7 @@ ok("rate limits: 7th copilot call in a minute -> 429 + Retry-After; third concur
   rmSync(`${dir}/campaign-junk.json`);
   rmSync(`${dir}/campaign-broken.json`);
 }
-ok("publish: missing market, shadow key, wrong book, wrong pair id, traversal id, bad numbers, non-USDC reward -> 400, nothing written; junk files cannot break /api/book");
+ok("publish: no session -> 401; missing market, shadow key, wrong book, wrong pair id, traversal id, bad numbers, non-USDC reward -> 400, nothing written; junk files cannot break /api/book");
 
 // ---------- 7. static traversal and malformed request targets ----------
 {
@@ -253,6 +271,157 @@ ok("static: traversal attempts return the app shell; a malformed request target 
   if (saved.provider !== undefined) process.env.AI_PROVIDER = saved.provider;
 }
 ok("PUBLIC_DEMO=1 with ANTHROPIC_API_KEY set reports ai.provider off unless SERVER_AI=on");
+
+// ---------- 9. Sign-In with Ethereum ----------
+{
+  const wallet = ethers.Wallet.createRandom();
+  const ip = "10.9.0.1";
+  const port = new URL(url).port;
+  const nonceRes = await fetch(`${url}/api/auth/nonce?address=${wallet.address.toLowerCase()}`, from(ip));
+  const c = await nonceRes.json();
+  assert.match(c.nonce, /^[0-9a-f]{32}$/);
+  const lines = c.message.split("\n");
+  assert.equal(lines[0], `127.0.0.1:${port} wants you to sign in with your Ethereum account:`);
+  assert.equal(lines[1], wallet.address, "checksummed address");
+  assert.equal(lines[3], "Sign in to Spreadbounty. This signature does not move funds or approve anything.");
+  for (const l of [`URI: http://127.0.0.1:${port}`, "Version: 1", "Chain ID: 143", `Nonce: ${c.nonce}`]) assert.ok(lines.includes(l), l);
+  const issued = Date.parse(lines.find((l: string) => l.startsWith("Issued At: ")).slice(11));
+  const expires = Date.parse(lines.find((l: string) => l.startsWith("Expiration Time: ")).slice(17));
+  assert.equal(expires - issued, 5 * 60_000);
+
+  assert.equal((await fetch(url + "/api/me", from(ip))).status, 401, "signed out");
+  const verify = await fetch(url + "/api/auth/verify", json({ nonce: c.nonce, signature: await wallet.signMessage(c.message) }, ip));
+  assert.equal(verify.status, 200);
+  assert.deepEqual(await verify.json(), { address: wallet.address });
+  const setCookie = verify.headers.get("set-cookie")!;
+  assert.match(setCookie, /^sb_sess=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+; HttpOnly; SameSite=Strict; Path=\/; Max-Age=28800$/, "no Secure over plain http");
+  const cookie = setCookie.split(";")[0]!;
+  const me = await (await fetch(url + "/api/me", { headers: { cookie, "x-forwarded-for": ip } })).json();
+  assert.deepEqual(me, { address: wallet.address, roles: { sponsorOf: [], makerIn: [] } });
+
+  // the same nonce again, even with a valid signature
+  const replay = await fetch(url + "/api/auth/verify", json({ nonce: c.nonce, signature: await wallet.signMessage(c.message) }, ip));
+  assert.equal(replay.status, 401);
+  assert.match((await replay.json()).error, /already used/);
+  // signed by someone else
+  const c2 = await (await fetch(`${url}/api/auth/nonce?address=${wallet.address}`, from(ip))).json();
+  const other = ethers.Wallet.createRandom();
+  const wrong = await fetch(url + "/api/auth/verify", json({ nonce: c2.nonce, signature: await other.signMessage(c2.message) }, ip));
+  assert.equal(wrong.status, 401);
+  assert.equal(wrong.headers.get("set-cookie"), null);
+  await wrong.text();
+  // the failed attempt burned that nonce too
+  assert.equal((await fetch(url + "/api/auth/verify", json({ nonce: c2.nonce, signature: await wallet.signMessage(c2.message) }, ip))).status, 401);
+  // expired: 5 minutes and a second later
+  const c3 = await (await fetch(`${url}/api/auth/nonce?address=${wallet.address}`, from("10.9.0.2"))).json();
+  clock += 5 * 60_000 + 1000;
+  const late = await fetch(url + "/api/auth/verify", json({ nonce: c3.nonce, signature: await wallet.signMessage(c3.message) }, "10.9.0.2"));
+  assert.equal(late.status, 401);
+  assert.match((await late.json()).error, /expired/);
+  // garbage signature of the right shape: 401, not 500
+  const c4 = await (await fetch(`${url}/api/auth/nonce?address=${wallet.address}`, from("10.9.0.2"))).json();
+  const junk = await fetch(url + "/api/auth/verify", json({ nonce: c4.nonce, signature: "0x" + "00".repeat(65) }, "10.9.0.2"));
+  assert.equal(junk.status, 401);
+  await junk.text();
+
+  // tampered cookies are signed out
+  const [payload, sig] = cookie.slice("sb_sess=".length).split(".");
+  const forgedPayload = Buffer.from(JSON.stringify({ addr: other.address.toLowerCase(), exp: clock + 3_600_000 })).toString("base64url");
+  const flip = (s: string) => (s[0] === "A" ? "B" : "A") + s.slice(1);
+  const otherSecret = await boot({ SESSION_SECRET: "a-different-secret-for-another-deployment-xx" });
+  const foreign = await signIn(otherSecret, wallet, "10.9.0.3");
+  for (const bad of [`sb_sess=${forgedPayload}.${sig}`, `sb_sess=${payload}.${flip(sig!)}`, `sb_sess=${payload}`, `sb_sess=${payload}.${sig}.x`, "sb_sess=", foreign])
+    assert.equal((await fetch(url + "/api/me", { headers: { cookie: bad, "x-forwarded-for": ip } })).status, 401, bad.slice(0, 40));
+  // and an expired session is signed out
+  clock += 8 * 3600_000;
+  assert.equal((await fetch(url + "/api/me", { headers: { cookie, "x-forwarded-for": ip } })).status, 401, "session older than 8 h");
+  clock -= 8 * 3600_000;
+}
+ok("SIWE: server-built EIP-4361 message (host, chain 143, nonce, 5-min expiry); valid signature -> HttpOnly SameSite=Strict cookie -> /api/me; reused, burned, expired, wrong-signer and junk signatures -> 401; tampered, foreign-secret and expired cookies are signed out");
+
+{
+  const wallet = ethers.Wallet.createRandom();
+  const c = await (await fetch(`${url}/api/auth/nonce?address=${wallet.address}`, { headers: { "x-forwarded-for": "10.9.1.1", "x-forwarded-proto": "https" } })).json();
+  assert.ok(c.message.includes(`URI: https://127.0.0.1:${new URL(url).port}`));
+  const r = await fetch(url + "/api/auth/verify", json({ nonce: c.nonce, signature: await wallet.signMessage(c.message) }, "10.9.1.1", { "x-forwarded-proto": "https" }));
+  assert.match(r.headers.get("set-cookie")!, /; Secure$/);
+  await r.text();
+  // without TRUST_PROXY the forwarded headers are ignored: no Secure, and X-Forwarded-For cannot dodge the limit
+  const direct = await boot({ TRUST_PROXY: "0" });
+  const c2 = await (await fetch(`${direct}/api/auth/nonce?address=${wallet.address}`, { headers: { "x-forwarded-proto": "https" } })).json();
+  assert.ok(c2.message.includes("URI: http://"));
+  const codes: number[] = [];
+  for (let i = 0; i < 11; i++) {
+    const rr = await fetch(`${direct}/api/auth/nonce?address=${wallet.address}`, { headers: { "x-forwarded-for": `10.99.0.${i}` } });
+    codes.push(rr.status);
+    await rr.text();
+  }
+  assert.equal(codes.filter((x) => x === 429).length, 2, "10 per minute per socket address, whatever X-Forwarded-For says");
+  // a Host this deploy does not serve cannot be named in a message
+  const res = await raw(url, `GET /api/auth/nonce?address=${wallet.address} HTTP/1.1\r\nHost: evil.example\r\nX-Forwarded-For: 10.9.1.2\r\nConnection: close\r\n\r\n`);
+  assert.match(res, /^HTTP\/1\.1 400/);
+  // CSRF: a foreign Origin cannot complete a sign-in, and a form post is not JSON
+  const c3 = await (await fetch(`${url}/api/auth/verify`, json({}, "10.9.1.3", { origin: "https://evil.example" }))).status;
+  assert.equal(c3, 403);
+  const form = await fetch(url + "/api/auth/verify", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": "10.9.1.3" }, body: "nonce=x" });
+  assert.equal(form.status, 415);
+  await form.text();
+  // logout clears the cookie
+  const out = await fetch(url + "/api/auth/logout", json({}, "10.9.1.3"));
+  assert.match(out.headers.get("set-cookie")!, /^sb_sess=; .*Max-Age=0/);
+  await out.text();
+}
+ok("SIWE: Secure cookie and https URI behind a trusted proxy only; X-Forwarded-For ignored without TRUST_PROXY; unknown Host -> 400; foreign Origin -> 403; form post -> 415; logout clears the cookie");
+
+// ---------- 10. publish as a signed-in sponsor; caps; roles ----------
+{
+  const cookie = await signIn(url, sponsor, "10.10.0.1");
+  const ids: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const r = await fetch(url + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: `ausd-usdc-${100 + i}`, sponsor: "0xDE00000000000000000000000000000000005150" }, rationale: "test" }, "10.10.0.1", { cookie }));
+    assert.equal(r.status, 201);
+    const body = await r.json();
+    assert.deepEqual(body, { id: `ausd-usdc-${100 + i}`, path: `campaign-ausd-usdc-${100 + i}.json` });
+    ids.push(body.id);
+  }
+  const stored = JSON.parse(readFileSync(`${dir}/campaign-ausd-usdc-101.json`, "utf8"));
+  assert.equal(stored.sponsor, sponsor.address, "sponsor is the session address, whatever the body said");
+  const fourth = await fetch(url + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: "ausd-usdc-104" } }, "10.10.0.1", { cookie }));
+  assert.equal(fourth.status, 429, "fourth publish in a day");
+  assert.ok(Number(fourth.headers.get("retry-after")) > 0);
+  await fourth.text();
+
+  // maker role: put this wallet into the payouts of demo epochs 1 and 2 (temp copy only)
+  for (const [n, amt] of [[1, "1500000"], [2, "2500000"]] as const) {
+    const f = `${dir}/ausd-usdc-demo/epoch-${n}.json`;
+    const e = JSON.parse(readFileSync(f, "utf8"));
+    e.amounts.push({ account: sponsor.address.toLowerCase(), amount: amt });
+    e.cumulative.push({ account: sponsor.address.toLowerCase(), amount: amt });
+    writeFileSync(f, JSON.stringify(e));
+  }
+  const me = await (await fetch(url + "/api/me", { headers: { cookie, "x-forwarded-for": "10.10.0.1" } })).json();
+  assert.equal(me.address, sponsor.address);
+  assert.deepEqual([...me.roles.sponsorOf].sort(), ids);
+  assert.deepEqual(me.roles.makerIn, [{ campaign: "ausd-usdc-demo", epochs: [1, 2], cumulative: "2500000" }]);
+
+  // 50 campaigns in total on a PUBLIC_DEMO server
+  const full = mkdtempSync(join(tmpdir(), "sb-server-full-"));
+  for (let i = 0; i < 50; i++) writeFileSync(`${full}/campaign-ausd-usdc-${i}.json`, JSON.stringify({ ...demoCampaign(), id: `ausd-usdc-${i}` }));
+  const pub = await boot({ PUBLIC_DEMO: "1" }, { ...src, dir: full });
+  const pubCookie = await signIn(pub, ethers.Wallet.createRandom(), "10.10.0.2");
+  const capped = await fetch(pub + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: "ausd-usdc-999" } }, "10.10.0.2", { cookie: pubCookie }));
+  assert.equal(capped.status, 429);
+  assert.match((await capped.json()).error, /50 campaigns/);
+  rmSync(full, { recursive: true, force: true });
+}
+ok("publish: signed-in sponsor -> 201, stored sponsor = session address; 4th in a day -> 429; 50 total on PUBLIC_DEMO -> 429; /api/me roles from public files (sponsorOf, makerIn with epochs and cumulative)");
+
+{
+  const before = serverLog.length;
+  await boot({ SESSION_SECRET: "" });
+  assert.ok(serverLog.slice(before).some((l) => /SESSION_SECRET is not set/.test(l)), "warns when the secret is random per boot");
+}
+ok("SESSION_SECRET unset -> random per boot, with a logged warning");
 
 await Promise.all(servers.map((s) => new Promise((r) => { s.closeAllConnections(); s.close(r); })));
 rmSync(dir, { recursive: true, force: true });

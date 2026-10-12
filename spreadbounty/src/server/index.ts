@@ -21,15 +21,19 @@ import { designCampaign, PAIRS } from "../ai/pipeline";
 import { writeEpochReport } from "../ai/report";
 import { getSource, recentHistory, type DataSource } from "../data/source";
 import { compareStrategies } from "../bot/sim";
+import { ethers } from "ethers";
+import { createAuth, type Auth } from "./auth";
 import {
-  Address, assertSameOrigin, BlockhashQuery, BookQuery, BotSimQuery, clientIp, firstIssue, HttpError, internalError, MarketQuery,
-  PublishIn, query, RateLimiter, rateRule, readJsonBody, serverConfig, setSecurityHeaders, type ServerConfig,
+  Address, assertSameOrigin, BlockhashQuery, BookQuery, BotSimQuery, clientIp, firstIssue, HttpError, internalError, isHttps, MarketQuery,
+  NonceQuery, PublishIn, query, RateLimiter, rateRule, readJsonBody, serverConfig, setSecurityHeaders, VerifyIn, type ServerConfig,
 } from "./security";
 
 const WEB = join(import.meta.dirname, "../../web/dist");
 const ID = /^[a-z0-9-]{1,80}$/;
 const BOOK_TTL_MS = 15_000;
 const COPILOT_CONCURRENCY = 2;
+const PER_SPONSOR_PER_DAY = 3;
+const PUBLIC_DEMO_MAX_CAMPAIGNS = 50;
 
 const send = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
   res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store", ...headers });
@@ -54,7 +58,8 @@ function listCampaigns(src: DataSource) {
     .flatMap((f) => {
       try {
         const c = StoredCampaign.safeParse(readJson(join(src.dir, f)));
-        return c.success ? [c.data as unknown as Campaign & { rationale?: string }] : [];
+        // the file name is the id: a file cannot claim another campaign's id
+        return c.success && ID.test(c.data.id) && f === `campaign-${c.data.id}.json` ? [c.data as unknown as Campaign & { rationale?: string }] : [];
       } catch {
         return [];
       }
@@ -135,10 +140,35 @@ async function botSim(src: DataSource, id: string, n: number, size: number) {
   return out;
 }
 
+/**
+ * Roles come from public files, never from a user table: a sponsor is the `sponsor` of a campaign file, a maker
+ * appears in an epoch's payouts, and everyone is a verifier. ponytail: reads every epoch file per call; index by
+ * address if a deploy ever holds thousands of epochs.
+ */
+function rolesFor(src: DataSource, addr: string) {
+  const camps = listCampaigns(src);
+  const sponsorOf = camps.filter((c) => typeof c.sponsor === "string" && c.sponsor.toLowerCase() === addr).map((c) => c.id);
+  const makerIn = camps.flatMap((c) => {
+    const epochs: number[] = [];
+    let cumulative = "0";
+    for (const n of listEpochs(src, c.id)) {
+      try {
+        const e = readJson<EpochFile>(epochPath(src, c.id, n));
+        if (e.amounts.some((a) => a.account.toLowerCase() === addr)) epochs.push(n);
+        cumulative = e.cumulative.find((a) => a.account.toLowerCase() === addr)?.amount ?? cumulative;
+      } catch { /* an unreadable epoch file grants nothing */ }
+    }
+    return epochs.length ? [{ campaign: c.id, epochs, cumulative }] : [];
+  });
+  return { sponsorOf, makerIn };
+}
+
 /** What route handlers share. */
 interface Ctx {
   src: DataSource;
   cfg: ServerConfig;
+  auth: Auth;
+  now: () => number;
   log: (m: string) => void;
   /** The server-side model, or null when it is off (always off on PUBLIC_DEMO unless SERVER_AI=on). */
   llm: () => LLM | null;
@@ -178,15 +208,22 @@ async function epochReport(_url: URL, ctx: Ctx, id: string, n: number, e: EpochF
 }
 
 // ---------------- campaigns ----------------
+/** POST /api/campaigns: signed-in sponsors only; the stored `sponsor` is always the session address. */
 async function publish(req: IncomingMessage, ctx: Ctx) {
+  const addr = ctx.auth.session(req);
+  if (!addr) throw new HttpError(401, "Sign in with your wallet to publish a campaign.");
   const body = parse(PublishIn, await readJsonBody(req), true);
-  const c = body.campaign;
+  const c = { ...body.campaign, sponsor: ethers.utils.getAddress(addr) };
   // the campaign must describe the real book for its pair, or Overview and Verify would label the wrong market
   const m = await ctx.src.market(c.pair);
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   if (!same(c.market, m.market) || !same(c.implementation, m.implementation) || c.pricePrecision !== m.pricePrecision || c.sizePrecision !== m.sizePrecision)
     throw new HttpError(400, `campaign: market details do not match the ${c.pair} book.`);
-  if (ctx.cfg.publicDemo && listCampaigns(ctx.src).length >= 50) throw new HttpError(429, "This demo server holds 50 campaigns already.", { "Retry-After": "86400" });
+  const all = listCampaigns(ctx.src);
+  const dayAgo = ctx.now() - 86_400_000;
+  const todays = all.filter((x) => typeof x.sponsor === "string" && x.sponsor.toLowerCase() === addr && statSync(campaignPath(ctx.src, x.id)).mtimeMs > dayAgo);
+  if (todays.length >= PER_SPONSOR_PER_DAY) throw new HttpError(429, `At most ${PER_SPONSOR_PER_DAY} campaigns per sponsor per day.`, { "Retry-After": "3600" });
+  if (ctx.cfg.publicDemo && all.length >= PUBLIC_DEMO_MAX_CAMPAIGNS) throw new HttpError(429, `This demo server holds ${PUBLIC_DEMO_MAX_CAMPAIGNS} campaigns already.`, { "Retry-After": "86400" });
   mkdirSync(ctx.src.dir, { recursive: true });
   try {
     writeFileSync(campaignPath(ctx.src, c.id), JSON.stringify({ ...c, rationale: body.rationale }, null, 2), { flag: "wx" }); // wx: never overwrite
@@ -254,15 +291,18 @@ export interface AppOptions {
 export function createApp(opts: AppOptions = {}) {
   const env = opts.env ?? process.env;
   const cfg = serverConfig(env);
+  const now = opts.now ?? Date.now;
+  const log = opts.log ?? console.error;
   const ctx: Ctx = {
     src: opts.src ?? getSource(),
     cfg,
-    log: opts.log ?? console.error,
+    auth: createAuth(env.SESSION_SECRET, now, log),
+    now,
+    log,
     llm: () => (cfg.serverAiOff ? null : getLLM()),
     copilotRunning: { n: 0 },
   };
-  const { src } = ctx;
-  const now = opts.now ?? Date.now;
+  const { src, auth } = ctx;
   const limiter = new RateLimiter(now);
 
   // /api/book replays up to 3 h of logs (hundreds of RPC calls live): one shared fetch per pair and window every 15 s
@@ -321,6 +361,27 @@ export function createApp(opts: AppOptions = {}) {
       return send(res, 200, Object.fromEntries(await Promise.all(ns.map(async (n) => [n, await src.blockHash(n)]))));
     }
     if (p === "/api/copilot" && method === "POST") return copilot(req, res, ctx);
+
+    // ---- sign-in (A5): reading, verifying and claim lookups never need it; only publishing does ----
+    if (p === "/api/auth/nonce" && method === "GET") {
+      const { address } = parse(NonceQuery, query(url));
+      const host = String(req.headers.host ?? "");
+      if (!/^[a-z0-9.-]{1,253}(:\d{1,5})?$/i.test(host) || !cfg.allowedHosts.includes(host.replace(/:\d+$/, "").toLowerCase()))
+        throw new HttpError(400, "This server does not accept sign-ins for that host name.");
+      return send(res, 200, auth.challenge(address, host, `${isHttps(req, cfg) ? "https" : "http"}://${host}`));
+    }
+    if (p === "/api/auth/verify" && method === "POST") {
+      const { nonce, signature } = parse(VerifyIn, await readJsonBody(req));
+      const address = auth.verify(nonce, signature);
+      return send(res, 200, { address }, { "Set-Cookie": auth.cookie(address, isHttps(req, cfg)) });
+    }
+    if (p === "/api/auth/logout" && method === "POST") return send(res, 200, { ok: true }, { "Set-Cookie": auth.clearCookie(isHttps(req, cfg)) });
+    if (p === "/api/me" && method === "GET") {
+      const addr = auth.session(req);
+      if (!addr) return send(res, 401, { error: "Not signed in." });
+      return send(res, 200, { address: ethers.utils.getAddress(addr), roles: rolesFor(src, addr) });
+    }
+
     if (parts[1] === "campaigns") return campaigns(req, res, url, parts, ctx);
     return send(res, 404, { error: "Not found." });
   }
@@ -340,7 +401,7 @@ export function createApp(opts: AppOptions = {}) {
   });
   server.requestTimeout = 30_000; // whole request (headers + body) must arrive within 30 s; streamed responses are unaffected
   server.headersTimeout = 20_000;
-  const sweeper = setInterval(() => limiter.sweep(), 60_000);
+  const sweeper = setInterval(() => (limiter.sweep(), auth.sweep()), 60_000);
   sweeper.unref();
   server.on("close", () => clearInterval(sweeper));
   return server;
