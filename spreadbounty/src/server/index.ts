@@ -302,7 +302,8 @@ async function campaigns(req: IncomingMessage, res: ServerResponse, url: URL, pa
   }
   if (parts[3] === "drop" && parts.length === 4) {
     const f = `${src.dir}/${id}/drop.json`;
-    return existsSync(f) ? send(res, 200, readJson(f)) : send(res, 404, { error: "No claim contract deployed for this campaign." });
+    // 200 + null, not 404: "no distributor yet" is a normal state, and a 404 shows up as a console error on the Claim page
+    return send(res, 200, existsSync(f) ? readJson(f) : null);
   }
   if (parts[3] === "bot-sim" && parts.length === 4) {
     const q = BotSimQuery.safeParse(query(url));
