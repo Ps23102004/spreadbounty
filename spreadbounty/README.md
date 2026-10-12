@@ -31,12 +31,20 @@ The app runs the same pipeline with any of three backends. The model never decid
 | **Claude** | `ANTHROPIC_API_KEY=… npm run serve` | Uses `claude-opus-5-5` unless `CLAUDE_MODEL` is set. |
 | **None** | `AI_PROVIDER=off npm run serve` | Rules parse the request; templates write the text. Every page still works. |
 
+**Or bring your own model, in the browser.** The AI chip in the top bar picks the Writer: None, This server, Anthropic, OpenAI, Google Gemini, OpenRouter, or Local (Ollama, LM Studio, llama.cpp, vLLM). Model calls go straight from your tab to that provider. This server only runs the backtest, and the same grounding guard checks the browser's text.
+
+**What has actually run** (Oct 11, demo data; times and outcomes in [docs/AI-RUNS.md](docs/AI-RUNS.md)):
+- `gemma4:e4b-it-qat` through Ollama, as `AI_PROVIDER=local` and as the browser Writer (Local), for a copilot design and an epoch report. Intent and text were written by the model and passed the number check on the first try. In the browser run, the decision model then sent the report back to the template because of one advice sentence. Each step took about 33 to 49 s on a laptop.
+- TypeSafe Jev (`jev-1.13.0`) as the decision model; see below.
+
+The other providers in the picker are covered by tests with stand-ins (`test/byo.test.ts`); docs/AI-RUNS.md records no live run of them.
+
 Local recipes:
 
 ```bash
 # Ollama
-ollama pull gemma3:4b            # or qwen2.5:7b, llama3.2:3b, minicpm-v
-AI_PROVIDER=local LOCAL_LLM_MODEL=gemma3:4b npm start
+ollama pull gemma4:e4b-it-qat    # the model in docs/AI-RUNS.md; any Ollama chat model id can be set
+AI_PROVIDER=local LOCAL_LLM_MODEL=gemma4:e4b-it-qat npm start
 
 # LM Studio (server tab -> start), llama.cpp `llama-server -m model.gguf --port 8080`, vLLM, or a DGX Spark box on your LAN
 AI_PROVIDER=local LOCAL_LLM_URL=http://localhost:1234/v1 LOCAL_LLM_MODEL=<model id> npm start
@@ -69,6 +77,12 @@ A second, different kind of model can check the words. Set `TYPESAFE_API_KEY` on
 The judge never changes a campaign, a candidate or a number (`test/judge.test.ts` checks that the campaign is byte-identical with and without it). With no key, an error or a timeout, the page behaves exactly as without it.
 
 Measured once against the real Jev (`jev-1.13.0`) on a 12-request handwritten fixture: **59/60 judgments right, 11/12 requests fully right, median 138 ms per request**. The untuned first wording scored 58/60. The per-sentence check flagged 8/8 invented claims. Details, misses and caveats: [docs/JUDGE.md](docs/JUDGE.md). A local System One server (Von or Laya speaking `POST /v1/systemone`) can be used from the browser with no key, but only for the question types it answers correctly when probed. The one local server probed here, the Laya cascade proxy, answered none, so no local judge is claimed.
+
+### Keys and security
+
+- **Browser keys** stay in this tab's `sessionStorage`. They move to `localStorage` only if you tick "Remember on this device", and **Forget key** clears both. A key is sent only to the provider it was typed for. Requests to this server carry no key header (`test/byo.test.ts`).
+- **The TypeSafe key is the one exception.** Jev rejects browser origins, so a key typed for the judge goes to `POST /api/judge` as `x-typesafe-key`. The server forwards it only to the fixed `https://api.typesafe.ai/v1/systemone` and never stores, logs or echoes it (`test/judge.test.ts`). Without that header, the server uses its own `TYPESAFE_API_KEY`.
+- **Server keys** (`ANTHROPIC_API_KEY`, `TYPESAFE_API_KEY`) live only in the server's environment. With `PUBLIC_DEMO=1` the server model stays off unless `SERVER_AI=on`. The model routes (`/api/judge`, reports, `/api/ai/health`, bot-sim) allow 10 requests per minute per IP.
 
 ## The app
 
