@@ -85,7 +85,7 @@ export function Makers({ campaign }: { campaign: CampaignRow | null }) {
       {sim && bot && naive && (
         <>
           <div className="grid-2">
-            <section className="panel" style={{ borderColor: "var(--accent)" }}>
+            <section className="panel" style={{ borderColor: "var(--edge)" }}>
               <div className="panel-head">
                 <div className="stack" style={{ gap: 2 }}>
                   <h2>Payout per epoch</h2>

@@ -4,7 +4,8 @@ import { api, fmt, makerName, type Book, type CampaignRow, type Config, type Epo
 import { Provenance } from "../ui/bits";
 import { PageHead } from "../ui/Schedule";
 import { SourceLabel } from "../ui/SourceLabel";
-import { DepthChart, Ladder, Legend, ViewToggle, type DepthPoint } from "../ui/charts";
+import { BookLadder } from "../ui/BookLadder";
+import { DepthChart, Legend, ViewToggle, type DepthPoint } from "../ui/charts";
 
 const reportCache = new Map<string, Report>();
 
@@ -20,7 +21,6 @@ export function Overview({ campaign, campaigns, onPick, config, onDesign }: { ca
     setEpochs(null);
     setSel(null);
     api.epochs(campaign.id).then((es) => { setEpochs(es); setSel(es.length ? es[es.length - 1]!.n : null); });
-    api.book(campaign.pair, 1).then(setBook).catch(() => setBook(null));
   }, [campaign?.id]);
   useEffect(() => {
     if (!campaign || sel === null) return;
@@ -148,11 +148,7 @@ export function Overview({ campaign, campaigns, onPick, config, onDesign }: { ca
                   <span className="muted" style={{ fontSize: "0.85rem" }}>Maker orders resting at block {book ? fmt.n(book.head) : "…"}; shaded rows earn rewards</span>
                 </div>
               </div>
-              {book && (book.bids.length || book.asks.length) ? (
-                <Ladder bids={book.bids} asks={book.asks} refPrice={book.refPrice} bandBps={book.bandBps} unit={base} decimals={campaign.pair.startsWith("MON") ? 6 : 4} />
-              ) : (
-                <p className="muted">{book ? "No resting orders in the last hour of logs." : "Loading the book…"}</p>
-              )}
+              <BookLadder campaign={campaign} onBook={setBook} />
             </section>
           </>
         </div>
@@ -211,8 +207,8 @@ function Payouts({ cur, file, quote }: { cur: EpochSummary; file: EpochFile; quo
                   <td title={a}><span className="addr">{makerName(a)}</span></td>
                   <td className="r">{orders.get(a) ?? 0}</td>
                   <td style={{ minWidth: 90 }}>
-                    <span style={{ display: "block", background: "var(--surface-2)", borderRadius: 4, height: 10 }}>
-                      <motion.span style={{ display: "block", height: "100%", borderRadius: "0 4px 4px 0", background: "var(--accent)" }} initial={{ width: 0 }} animate={{ width: `${(p / total) * 100}%` }} transition={{ duration: 0.6, delay: i * 0.05 }} />
+                    <span className="track share">
+                      <motion.span className="bar" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: p / total }} transition={{ duration: 0.6, delay: Math.min(i * 0.03, 0.3), ease: [0.16, 1, 0.3, 1] }} />
                     </span>
                   </td>
                   <td className="r">{p ? fmt.usd(p) : "–"}</td>
@@ -264,11 +260,11 @@ function ReportCard({ campaignId, n, config }: { campaignId: string; n: number; 
       {busy && !r && <p className="muted row"><span className="spinner" /> Writing with {who}…</p>}
       {err && <p className="note bad">{err}</p>}
       {r && (
-        <motion.div key={r.markdown} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="stack" style={{ gap: 12 }}>
+        <div className="stack" style={{ gap: 12 }}>
           <p className="prose">{r.markdown}</p>
           <Provenance by={r.ai.writtenBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} />
           <span className="muted" style={{ fontSize: "0.8rem" }}>Payout root <span className="mono">{fmt.short(r.root)}</span></span>
-        </motion.div>
+        </div>
       )}
     </section>
   );

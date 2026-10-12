@@ -21,8 +21,9 @@
     "drop": "tsx src/drop/main.ts",
     "test:drop": "npm run --silent demo:gen && tsx test/drop.test.ts",
     "localchain": "tsx test/local-chain.ts",
-    "test:all": "npm test && npm run test:boundary && npm run test:ai && npm run test:bot && npm run test:drop",
-    "test:boundary": "tsx test/boundary.test.ts"
+    "test:all": "npm test && npm run test:boundary && npm run test:ai && npm run test:bot && npm run test:drop && npm run test:web",
+    "test:boundary": "tsx test/boundary.test.ts",
+    "test:web": "npm run --silent demo:gen && tsx test/web.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",

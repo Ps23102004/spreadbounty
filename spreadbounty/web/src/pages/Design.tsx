@@ -96,7 +96,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
           </section>
           {r ? (
             <>
-              <section className="panel" style={{ borderColor: "var(--accent)" }}>
+              <section className="panel" style={{ borderColor: "var(--edge)" }}>
                 <div className="panel-head">
                   <h2>{r.pilot ? "Recommended pilot" : "Recommended"}</h2>
                   <span className="badge accent">{r.campaign.pair}</span>
@@ -104,8 +104,8 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
                 <div className="kpis" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
                   <div className="kpi"><span className="label">Band</span><span className="kpi-value">{r.recommended.bandBps} bps</span></div>
                   <div className="kpi"><span className="label">Minimum rest</span><span className="kpi-value">{r.recommended.minRestBlocks} blocks</span></div>
-                  <div className="kpi" style={{ borderLeft: 0, borderTop: "1px solid var(--hairline)" }}><span className="label">Two-sided in backtest</span><span className="kpi-value">{fmt.pct(r.recommended.twoSidedCoveragePct)}</span></div>
-                  <div className="kpi" style={{ borderTop: "1px solid var(--hairline)" }}><span className="label">Budget per epoch</span><span style={{ whiteSpace: "nowrap" }}><span className="kpi-value">{fmt.usd(Number(r.campaign.budgetPerEpoch) / 1e6)}</span> <span className="muted">{quote}</span></span></div>
+                  <div className="kpi" style={{ borderLeft: 0, borderTop: "1px solid var(--rule)" }}><span className="label">Two-sided in backtest</span><span className="kpi-value">{fmt.pct(r.recommended.twoSidedCoveragePct)}</span></div>
+                  <div className="kpi" style={{ borderTop: "1px solid var(--rule)" }}><span className="label">Budget per epoch</span><span style={{ whiteSpace: "nowrap" }}><span className="kpi-value">{fmt.usd(Number(r.campaign.budgetPerEpoch) / 1e6)}</span> <span className="muted">{quote}</span></span></div>
                 </div>
                 <p className="prose">{r.brief}</p>
                 <Provenance by={r.ai.briefBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} />
