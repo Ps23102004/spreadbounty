@@ -13,7 +13,7 @@ Verifiable maker-depth incentives for Kuru order books on Monad. Built for **Met
 
 | | |
 |---|---|
-| Tests | `npm run test:all` → 32 pass (core, AI harness, maker bot, claim contract on a local EVM) |
+| Tests | `npm run test:all` → 94 pass (core, code boundary, AI and bring-your-own-model, maker bot, claim contract on a local EVM, server, browser recompute, judge, shadow run) |
 | Mainnet, read-only | Kuru markets verified; MON/USDC: 6,602 book logs replayed, 8/8 live orders match `s_orders`, deterministic roots. AUSD/USDC book was empty |
 | Mainnet, write path | **Not run.** No live maker/taker orders, no closed live epoch, distributor not deployed on Monad |
 | Data in the app | Labelled synthetic dataset unless `DATA_SOURCE=live` |

@@ -88,7 +88,7 @@ Upload in this order. Every caption names its data source, because the app shots
 
 **Challenges.** Monad's public RPC caps log queries at 100 blocks, so the fetcher chunks and retries. The event decoder had to be pinned to Kuru's live implementation and checked against contract state. Small local models invent numbers, so every number in model text is checked against the facts; that check had a false positive on "per $1k", which we fixed with a regression test. And payouts must be bit-identical on every machine, so scoring is integer-only. [446]
 
-**Accomplishments.** A forged payout with a perfectly valid Merkle root fails when anyone's browser recomputes it. Our proofs paid four makers exactly their totals on the real 1inch contract in tests. 32 automated tests cover scoring, verification, the AI harness, the bot and the claim contract. [275]
+**Accomplishments.** A forged payout with a perfectly valid Merkle root fails when anyone's browser recomputes it. Our proofs paid four makers exactly their totals on the real 1inch contract in tests. 94 automated checks cover scoring, verification, the AI layer, the bot, the claim contract, the server and the browser recompute. [309]
 
 **What we learned.** Incentive design shows up in the data. Because every requote restarts the rest clock, in backtests on our synthetic dataset a bot that leaves good orders alone earned more with 2 transactions than a timer bot with 860. AI is useful at the edges: reading a sponsor's request and explaining verified numbers. It doesn't belong in the money path. [343]
 

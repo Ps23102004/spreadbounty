@@ -31,7 +31,7 @@ All app screenshots and the bot backtest use a labelled **synthetic** dataset.
 
 **7. How can I verify the claims in five minutes?**
 `cd spreadbounty && npm install`, then:
-- `npm test`, `npm run test:ai`, `npm run test:bot` and `npm run test:drop`: 32 tests.
+- `npm run test:all`: 94 checks across scoring, verification, the AI layer, the bot, the claim contract, the server and the in-browser recompute.
 - `npm start`, then open the Verify page and turn on "Try a forged payout".
 
 `test:drop` deploys the real 1inch contract on a local EVM. Four makers claim exactly their totals with our proofs.

@@ -36,7 +36,7 @@ The ask is a one-week pilot on [AUSD/USDC]. Before each epoch is funded, you che
 - the cost per $1,000 of depth;
 - how many makers other than us showed up.
 
-Status, plainly: the scorer, verifier, maker bot and claim tooling are built and tested (32 tests). [Our first live epoch ran on DATE / The first live epoch is scheduled for DATE.] Code and a one-page FAQ: [repo link] · [FAQ link]
+Status, plainly: the scorer, verifier, maker bot and claim tooling are built and tested (94 automated checks). [Our first live epoch ran on DATE / The first live epoch is scheduled for DATE.] Code and a one-page FAQ: [repo link] · [FAQ link]
 
 Would [15 minutes next week] work to set the band and budget?
 

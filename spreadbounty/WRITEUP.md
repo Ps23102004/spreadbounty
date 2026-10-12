@@ -43,11 +43,16 @@ Neither lets a sponsor pay an open crowd of makers for depth they can verify.
 
 ## Evidence you can check
 
-- **32 automated tests:**
-  - `npm test`: 8 core tests, including tamper detection.
-  - `npm run test:ai`: 7 tests against a mock weak local model that invents numbers and wraps JSON in prose.
+- **94 automated checks (`npm run test:all`, exit 0):**
+  - `npm test`: 9 core tests, including tamper detection on the payout list, block range and epoch chain.
+  - `npm run test:boundary`: 5 checks that the AI layer and the web app never reach payout code, and that no key value ships in the web bundle.
+  - `npm run test:ai`: 28 tests against mock models that invent numbers, copy field names and wrap JSON in prose, including 10 on bring-your-own-model keys.
   - `npm run test:bot`: 10 tests, including the live runner against a fake RPC serving recorded data.
   - `npm run test:drop`: 7 tests on an in-process EVM. Four makers claimed exactly their totals from the real 1inch contract using our proofs; forged roots, unknown roots and non-owner publishes are refused.
+  - `npm run test:server`: 15 tests on headers, input validation, body and rate limits, and wallet sign-in.
+  - `npm run test:web`: 5 tests on the in-browser recompute (a tampered payout list and rewritten campaign terms both fail) and the quote probe.
+  - `npm run test:judge`: 9 tests on the optional TypeSafe decision-model judge.
+  - `npm run test:shadow`: 6 tests on the real-data shadow campaign (nothing paid).
 - **Mainnet replay (read-only).** In a replay of 6,602 Kuru MON/USDC book logs (blocks 112,568,360–112,570,360, Oct 11 2026, read-only), 8 of 8 live orders matched the contract's own `s_orders` state, and two independent replays produced the same payout root; report: `day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json`. The AUSD/USDC book was empty at the time (0 logs), so that market's replay check was vacuous.
 - **Maker bot backtest** on the labelled synthetic dataset (2,000 AUSD per side, 10 USDC per epoch):
 
