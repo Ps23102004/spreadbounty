@@ -72,8 +72,8 @@
         <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:18787/#design</span></div>
         <div class="app" id="a3L" data-src="assets/ui/r-shadow-design-result.png" data-pw="1440" data-tbh="61" data-x0="110" data-w="1220" data-s="0.95" data-h="800"></div>
       </div>
-      <svg id="p3" class="pointer hid" viewBox="0 0 44 56" style="left:1681px;top:713px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
-      <div id="r3" class="ripple hid" style="left:1639px;top:671px"></div>
+      <svg id="p3" class="pointer hid" viewBox="0 0 44 56" style="left:1681px;top:719px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
+      <div id="r3" class="ripple hid" style="left:1639px;top:677px"></div>
     </section>
 
     <!-- D4 overview -->
@@ -86,7 +86,7 @@
         <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#overview</span></div>
         <div class="app" id="a4" data-src="assets/ui/r-shadow-overview.png" data-pw="1440" data-tbh="61" data-x0="110" data-w="1220" data-s="0.95" data-h="800"></div>
       </div>
-      <div id="box4" class="abs hid" style="left:480px;top:308px;width:772px;height:66px;border:4px solid var(--ask);background:rgba(201,58,36,.06)"></div>
+      <div id="box4" class="abs hid" style="left:480px;top:349px;width:772px;height:66px;border:4px solid var(--ask);background:rgba(201,58,36,.06)"></div>
     </section>
 
     <!-- D5 makers -->
@@ -188,7 +188,7 @@
       <div id="c6" class="abs serif pfg split" style="left:160px;top:84px;font-size:80px;width:1700px"><span class="row">Anyone can recompute <i>every payout.</i></span></div>
       <div id="w6" class="win" style="left:160px;top:236px">
         <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#verify</span></div>
-        <div class="app" id="a6" data-src="assets/ui/r-verify-0.png,assets/ui/r-verify-running.png,assets/ui/r-verify-ok.png,assets/ui/r-verify-forged-on.png,assets/ui/r-verify-mismatch-2.png" data-pw="1440" data-tbh="61" data-x0="110" data-w="1220" data-s="0.95" data-h="640"></div>
+        <div class="app" id="a6" data-src="assets/ui/r-verify-0.png,assets/ui/r-verify-running.png,assets/ui/r-verify-ok.png,assets/ui/r-verify-forged-on.png,assets/ui/r-verify-mismatch-2.png" data-pw="1440" data-tbh="61" data-x0="110" data-w="1220" data-s="0.95" data-h="660"></div>
       </div>
       <svg id="p6" class="pointer hid" viewBox="0 0 44 56" style="left:1161px;top:686px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
       <div id="r6" class="ripple hid" style="left:1119px;top:644px"></div>
@@ -240,7 +240,7 @@
       <div id="s9" class="abs" style="left:200px;top:566px;width:1560px">
         <div class="lab bdh s9r" style="font-size:20px">Status, plainly</div>
         <div class="serif pfg s9r" style="font-size:46px;line-height:1.2;margin-top:16px">Read-only mainnet checks done; live orders, a live epoch and the distributor on Monad are pending.</div>
-        <div class="mono dim s9r" style="font-size:26px;line-height:1.5;margin-top:26px">npm run test:all → 79 checks pass · screens are labelled: synthetic demo data, or a shadow campaign on real logs (nothing paid) · built for Metropolis (Monad), Track 1</div>
+        <div class="mono dim s9r" style="font-size:26px;line-height:1.5;margin-top:26px">npm run test:all → 94 checks pass · screens are labelled: synthetic demo data, or a shadow campaign on real logs (nothing paid) · built for Metropolis (Monad), Track 1</div>
         <div class="mono pfg s9r" style="font-size:28px;margin-top:22px"><span class="dim">$ </span>cd spreadbounty &amp;&amp; npm install &amp;&amp; npm start</div>
       </div>
     </section>
@@ -359,7 +359,7 @@
   state("#a3", 1, 25.5);
   hide("#p3", 26.0);
   state("#a3", 2, 27.0);
-  scroll("#a3", 662, 0.95, 28.2, 0.9);
+  scroll("#a3", 670, 0.95, 28.2, 0.9);
   tl.to("#c3a", { autoAlpha: 0, duration: 0.25 }, 30.5);
   tl.fromTo("#w3", { scale: 1, transformOrigin: "760px 560px" }, { scale: 1.2, duration: 0.7, ease: "power3.inOut", immediateRender: false }, 30.6);
   tl.to("#w3", { scale: 1, duration: 0.5, ease: "power3.inOut" }, 34.1);
@@ -369,7 +369,7 @@
   hide("#w3", 35.0);
   show(["#w3L", "#c3b"], 35.0);
   paperIn("#c3b .hd", 35.1, 0.05);
-  scrollSet("#a3L", 662, 0.95, 0);
+  scrollSet("#a3L", 670, 0.95, 0);
   tl.fromTo("#w3L", { scale: 1, transformOrigin: "0px 420px" }, { scale: 1.08, duration: 1.2, ease: "power2.inOut", immediateRender: false }, 36.2);
 
   // ---------- D4 40–55 OVERVIEW (DEMO) ----------
@@ -415,7 +415,7 @@
   state("#a6", 2, 74.0);
   hide("#p6", 74.0);
   paperOut("#c6", 74.45);
-  scroll("#a6", 260, 0.95, 74.1, 0.5);
+  scroll("#a6", 270, 0.95, 74.1, 0.5);
   tl.fromTo("#w6", { scale: 1, transformOrigin: "740px 493px" }, { scale: 1.2, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 74.6);
   show("#n6a", 75.0);
   tl.fromTo("#n6a > div", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.15 }, 75.0);
@@ -436,7 +436,7 @@
   click("#p6", "#r6", 82.4);
   state("#a6", 4, 82.6);
   hide("#p6", 82.9);
-  scroll("#a6", 260, 0.95, 82.8, 0.45);
+  scroll("#a6", 270, 0.95, 82.8, 0.45);
   paperOut("#c6", 83.2);
   tl.fromTo("#w6", { scale: 1, transformOrigin: "925px 446px" }, { scale: 1.16, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 83.4);
   tl.fromTo("#n6b > div:nth-child(3)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out" }, 83.6);

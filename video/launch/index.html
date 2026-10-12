@@ -97,7 +97,7 @@
       <div id="vhead" class="abs serif pfg split" style="left:200px;top:96px;font-size:84px;width:1640px"><span class="row">Anyone can recompute <i>every payout.</i></span></div>
       <div id="winV" class="win">
         <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#verify</span></div>
-        <div class="app" id="appV" data-src="assets/ui/r-verify-forged-fresh.png,assets/ui/r-verify-forged-running.png,assets/ui/r-verify-forged.png" data-pw="1440" data-tbh="61" data-s="0.95" data-x0="110" data-w="1220" data-h="640"></div>
+        <div class="app" id="appV" data-src="assets/ui/r-verify-forged-fresh.png,assets/ui/r-verify-forged-running.png,assets/ui/r-verify-forged.png" data-pw="1440" data-tbh="61" data-s="0.95" data-x0="110" data-w="1220" data-h="660"></div>
       </div>
       <svg id="ptr" class="pointer hid" viewBox="0 0 44 56" style="left:1161px;top:686px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
       <div id="rip" class="ripple hid" style="left:1119px;top:644px"></div>
@@ -212,7 +212,7 @@
   tl.fromTo("#rip", { autoAlpha: 1, scale: 0.3 }, { scale: 1.3, autoAlpha: 0, duration: 0.4, ease: "power2.out", immediateRender: false }, 11.05);
   show("#appV .L1", 11.2); show("#appV .L2", 11.36);
   hide("#ptr", 11.3);
-  scroll("#appV", 260, 0.95, 11.3, 0.45);
+  scroll("#appV", 270, 0.95, 11.3, 0.45);
   tl.fromTo("#winV", { scale: 1, transformOrigin: "926px 446px" }, { scale: 1.16, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 11.75);
   show("#vnote", 10.45);
   tl.fromTo("#vnote > div:nth-child(-n+2)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.15 }, 10.45);

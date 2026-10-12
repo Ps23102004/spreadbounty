@@ -24,7 +24,14 @@ const clickText = async (sel, text) => {
 const until = (fn, timeout = 120000) => page.waitForFunction(fn, { timeout, polling: 200 });
 const idle = () => until(() => !document.querySelector(".btn.recompute .spinner"));
 const settle = mode === "shadow" ? 8000 : 2500; // the shadow book needs ~6 s on first load
-const go = async (hash) => { await page.goto(`${base}/#${hash}`, { waitUntil: "networkidle0", timeout: 60000 }); await sleep(settle); };
+// First load by URL (networkidle2, not 0: the live book keeps polling); after that, click the tab with the mouse as a user would,
+// so the page heading takes focus without a keyboard focus ring (a hash-only goto counts as a non-pointer focus change).
+const go = async (hash) => {
+  const link = page.url().startsWith(base) && (await page.$(`a[href="#${hash}"]`));
+  if (link) await link.click();
+  else await page.goto(`${base}/#${hash}`, { waitUntil: "networkidle2", timeout: 60000 });
+  await sleep(settle);
+};
 const forge = () => page.click("label.switch input");
 
 if (mode === "shadow") {
