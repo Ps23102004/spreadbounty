@@ -13,13 +13,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { openaiCompatible, type LLM } from "./http";
 
-export interface LLM {
-  provider: "claude" | "local";
-  model: string;
-  json<T extends z.ZodType>(schema: T, system: string, user: string): Promise<z.infer<T> | null>;
-  text(system: string, user: string, maxTokens?: number): Promise<string | null>;
-}
+export { extractJson, type LLM } from "./http";
 
 export function aiConfig() {
   const explicit = process.env.AI_PROVIDER?.toLowerCase();
@@ -36,7 +32,8 @@ export function aiConfig() {
 export function getLLM(): LLM | null {
   const c = aiConfig();
   if (c.provider === "claude") return claude(c.claudeModel);
-  if (c.provider === "local") return local(c.localUrl, c.localModel, c.localKey);
+  if (c.provider === "local")
+    return openaiCompatible({ baseUrl: c.localUrl, model: c.localModel, key: c.localKey, timeoutMs: Number(process.env.LOCAL_LLM_TIMEOUT_MS ?? 120_000) });
   return null;
 }
 
@@ -71,76 +68,6 @@ function claude(model: string): LLM {
       });
       if (res.stop_reason === "refusal") return null;
       return res.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n").trim() || null;
-    },
-  };
-}
-
-// ---------------- Local (OpenAI-compatible HTTP) ----------------
-/** Pull the first balanced JSON object out of a reply (small models wrap JSON in prose or code fences). */
-export function extractJson(s: string): unknown {
-  const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const body = fenced ? fenced[1]! : s;
-  const start = body.indexOf("{");
-  if (start < 0) return null;
-  let depth = 0, inStr = false, esc = false;
-  for (let i = start; i < body.length; i++) {
-    const ch = body[i]!;
-    if (inStr) {
-      if (esc) esc = false;
-      else if (ch === "\\") esc = true;
-      else if (ch === '"') inStr = false;
-    } else if (ch === '"') inStr = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}" && --depth === 0) {
-      try {
-        return JSON.parse(body.slice(start, i + 1));
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
-}
-
-function local(baseUrl: string, model: string, key?: string): LLM {
-  const call = async (body: Record<string, unknown>) => {
-    const r = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
-      body: JSON.stringify({ model, temperature: 0, stream: false, ...body }),
-      signal: AbortSignal.timeout(Number(process.env.LOCAL_LLM_TIMEOUT_MS ?? 120_000)),
-    });
-    if (!r.ok) throw Object.assign(new Error(`local LLM ${r.status}: ${(await r.text()).slice(0, 200)}`), { status: r.status });
-    const j = (await r.json()) as { choices?: { message?: { content?: string } }[] };
-    return j.choices?.[0]?.message?.content ?? "";
-  };
-  return {
-    provider: "local",
-    model,
-    async json(schema, system, user) {
-      const jsonSchema = z.toJSONSchema(schema);
-      const messages = [
-        { role: "system", content: `${system}\nReply with one JSON object only, matching this JSON Schema:\n${JSON.stringify(jsonSchema)}` },
-        { role: "user", content: user },
-      ];
-      // Strongest constraint the server supports first: JSON-schema grammar, then JSON mode, then plain text.
-      const formats = [{ type: "json_schema", json_schema: { name: "result", schema: jsonSchema, strict: true } }, { type: "json_object" }, null];
-      for (const fmt of formats) {
-        let out: string;
-        try {
-          out = await call({ messages, max_tokens: 800, ...(fmt ? { response_format: fmt } : {}) });
-        } catch (e: any) {
-          if (e?.status === 400 || e?.status === 422) continue; // server doesn't support this response_format
-          throw e;
-        }
-        const parsed = schema.safeParse(extractJson(out));
-        if (parsed.success) return parsed.data;
-      }
-      return null;
-    },
-    async text(system, user, maxTokens = 900) {
-      const out = await call({ messages: [{ role: "system", content: system }, { role: "user", content: user }], max_tokens: maxTokens });
-      return out.replace(/<think>[\s\S]*?<\/think>/g, "").trim() || null; // strip reasoning traces some local models emit
     },
   };
 }

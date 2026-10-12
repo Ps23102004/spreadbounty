@@ -1,0 +1,65 @@
+/* ModelDialog ("AI models"). Tokens from DESIGN-BRIEF section 2, with today's tokens as fallbacks until A1 lands. */
+.md {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--edge, var(--hairline));
+  border-radius: var(--r-sheet, 2px);
+  background: var(--sheet, var(--surface));
+  color: var(--ink);
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 160ms var(--ease-exit, ease-in), transform 160ms var(--ease-exit, ease-in), overlay 160ms allow-discrete, display 160ms allow-discrete;
+}
+.md[open] {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--t-small, 240ms);
+  transition-timing-function: var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1));
+}
+@starting-style {
+  .md[open] { opacity: 0; transform: translateY(16px); }
+}
+.md::backdrop { background: rgb(0 0 0 / 0.35); }
+@media (prefers-reduced-motion: reduce) {
+  .md, .md[open] { transform: none; }
+}
+@media (max-width: 559px) {
+  .md { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+
+.md-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 3px double var(--edge, var(--hairline)); }
+.md-head h2 { margin: 0; }
+.md-lede { margin: 12px 0 16px; color: var(--ink-2); }
+.md-note, .md-privacy { margin: 12px 0 0; color: var(--ink-2); font-size: 0.875rem; }
+.md-hint { color: var(--muted); font-size: 0.8rem; }
+.md-error { color: var(--red, var(--critical)); font-size: 0.875rem; }
+.md-ok { color: var(--tick, var(--good)); font-size: 0.875rem; }
+
+.md-set { margin: 0; padding: 0; border: 0; }
+.md-set legend { margin-bottom: 4px; }
+.md-option { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; border-bottom: 1px solid var(--rule, var(--hairline)); cursor: pointer; }
+.md-option:has(input:checked) { background: var(--paper, var(--surface-2)); font-weight: 600; }
+.md-option input, .md-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+
+.md-form { display: grid; gap: 16px; margin-top: 16px; }
+.md-field { display: grid; gap: 6px; }
+.md-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.md-inline > input { flex: 1 1 200px; min-width: 0; }
+.md-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.md .md-presets [aria-pressed="true"] { border-color: var(--ink); background: var(--paper, var(--surface-2)); font-weight: 600; }
+.md-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; }
+
+.md input[type="text"], .md input[type="password"], .md input[type="url"] {
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--edge, var(--hairline));
+  border-radius: var(--r-sheet, 2px);
+  background: var(--tape, var(--surface));
+  color: var(--ink);
+  font: 16px/1.2 var(--mono, ui-monospace, monospace);
+}
+.md input:focus-visible, .md button:focus-visible { outline: 2px solid var(--bid, var(--accent)); outline-offset: 2px; }
+.md .btn { min-height: 44px; }

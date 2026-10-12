@@ -8,8 +8,10 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { checkGrounding, textNumbers } from "../src/ai/grounding";
+import { anthropicMessages, openaiCompatible } from "../src/ai/http";
 import { extractJson } from "../src/ai/llm";
-import { designCampaign, ruleIntent } from "../src/ai/pipeline";
+import { designCampaign, IntentSchema, ruleIntent } from "../src/ai/pipeline";
+import { INTENT_SYSTEM } from "../src/ai/prompts";
 import { writeEpochReport } from "../src/ai/report";
 import { demoSource } from "../src/data/source";
 import { readFileSync } from "node:fs";
@@ -41,6 +43,49 @@ assert.equal(ruleIntent("Deepen MON/USDC, about $700 a week").budgetPerDay, 100)
 assert.equal(ruleIntent("ausd within 0.2%").bandBps, 20);
 assert.equal(ruleIntent("AUSD/USDC 15 bps hourly").epochMinutes, 60);
 ok("ruleIntent: weekly/monthly budgets, % and bps bands, hourly epochs");
+
+// ---------- (a) an intent read elsewhere (the browser) drives the same backtest as the rules-only path ----------
+{
+  const s0 = demoSource();
+  for (const g of ["Agora wants AUSD/USDC tight around 1.0, $50/day, hourly epochs", "Deepen MON/USDC within 0.25%, about $700 a week", "Keep AUSD two-sided within 10 bps, $30 a day"]) {
+    const injected = await designCampaign(g, s0, null, undefined, { intent: ruleIntent(g), brief: "none" });
+    const rules = await designCampaign(g, s0, null);
+    assert.deepEqual(injected.campaign, rules.campaign);
+    assert.deepEqual(injected.candidates, rules.candidates);
+    assert.equal(injected.ai.intentBy, "client");
+    assert.deepEqual(injected.facts, rules.facts);
+  }
+  ok("designCampaign with an injected intent and brief none = rules-only campaign, candidates and facts (3 examples)");
+}
+
+// ---------- (c) anthropicMessages: browser headers, plain retry for older models, canned replies parsed ----------
+{
+  const sent: { headers: Record<string, string>; body: any }[] = [];
+  const replies = [
+    new Response('{"type":"error","error":{"type":"invalid_request_error","message":"effort not supported"}}', { status: 400 }),
+    Response.json({ model: "claude-x", stop_reason: "end_turn", content: [{ type: "text", text: 'Here you go: {"pair":"AUSD/USDC","bandBps":15,"budgetPerDay":null,"epochMinutes":null,"refPrice":1,"summary":"tight AUSD"}' }] }),
+    Response.json({ model: "claude-x", stop_reason: "end_turn", content: [{ type: "thinking", thinking: "" }, { type: "text", text: "ready" }] }),
+    Response.json({ model: "claude-x", stop_reason: "refusal", content: [] }),
+  ];
+  const fake = async (url: string, init: RequestInit) => {
+    assert.equal(url, "https://api.anthropic.com/v1/messages");
+    sent.push({ headers: Object.fromEntries(new Headers(init.headers).entries()), body: JSON.parse(String(init.body)) });
+    return replies.shift()!;
+  };
+  const a = anthropicMessages({ key: "test-key-0004", model: "claude-opus-5-5", fetchImpl: fake });
+  assert.deepEqual(await a.json(IntentSchema, INTENT_SYSTEM, "AUSD 15 bps"), { pair: "AUSD/USDC", bandBps: 15, budgetPerDay: null, epochMinutes: null, refPrice: 1, summary: "tight AUSD" });
+  for (const h of sent.map((x) => x.headers)) {
+    assert.equal(h["x-api-key"], "test-key-0004");
+    assert.equal(h["anthropic-version"], "2023-06-01");
+    assert.equal(h["anthropic-dangerous-direct-browser-access"], "true");
+  }
+  assert.equal(sent[0]!.body.output_config.effort, "low");
+  assert.equal(sent[0]!.body.output_config.format.type, "json_schema");
+  assert.equal(sent[1]!.body.output_config, undefined); // after a 400: the same request, plain
+  assert.equal(await a.text("s", "u"), "ready");
+  assert.equal(await a.text("s", "u"), null); // refusal -> null -> caller uses rules / template
+  ok("anthropicMessages: x-api-key + anthropic-version + direct-browser-access on every call; 400 -> plain retry; JSON parsed; refusal -> null");
+}
 
 // ---------- mock weak local model ----------
 type Mode = "good" | "liar" | "fixes-on-retry";
@@ -95,6 +140,15 @@ assert.equal(rep.ai.writtenBy, "model");
 assert.ok(checkGrounding(rep.markdown, rep.facts).ok);
 ok("report: grounded model text accepted");
 
+{
+  // (b) the shared adapter on its own: schema-valid JSON out of a prose-wrapped reply, after json_schema is refused
+  const o = openaiCompatible({ baseUrl: process.env.LOCAL_LLM_URL!, model: "gemma3:4b" });
+  const intent = await o.json(IntentSchema, INTENT_SYSTEM, "Keep AUSD tight");
+  assert.ok(IntentSchema.safeParse(intent).success);
+  assert.equal(intent!.bandBps, 15);
+  ok("openaiCompatible: schema-valid JSON from a prose-wrapped reply (json_schema refused -> json_object)");
+}
+
 server.close();
 process.env.LOCAL_LLM_URL = "http://127.0.0.1:9/v1"; // nothing listening
 const { getLLM: getLLM2 } = await import("../src/ai/llm");
@@ -106,3 +160,5 @@ assert.equal(r3.recommended.bandBps, 15);
 ok("model server down -> rules + template, same recommendation");
 
 console.log(`\n${n} tests passed`);
+
+await import("./byo.test"); // bring-your-own-model suite (browser Writer), kept in test:ai so test:all runs it

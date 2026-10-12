@@ -4,13 +4,8 @@
  * every number it writes is grounding-checked, and a template is used if it fails twice or no model is set.
  */
 import { epochMetrics, type EpochFile } from "../core/epoch";
-import { groundedText } from "./grounding";
-import type { LLM } from "./llm";
-
-const SYSTEM = `You write the epoch report a liquidity sponsor reads after each Spreadbounty epoch on Kuru (Monad's order book).
-Use only numbers that appear in the facts JSON, written the same way. Do not compute or estimate new numbers.
-Cover, in under 150 words of plain sentences: what the budget bought (two-sided coverage, depth inside the band, cost per $1k of depth), how concentrated the payouts were, what changed from the previous epoch if one is given, and one suggestion for the next epoch.
-Do not repeat the payout root; it is shown separately.`;
+import type { LLM } from "./http";
+import { narrate, REPORT_SYSTEM } from "./prompts";
 
 const r2 = (x: number | null) => (x === null ? null : Math.round(x * 100) / 100);
 
@@ -47,22 +42,9 @@ export function templateReport(f: ReturnType<typeof reportFacts>) {
   return `Epoch ${t.epoch} on ${f.pair}: the book was two-sided within ${f.bandBps} bps for ${t.twoSidedCoveragePct}% of samples, with ${t.avgTwoSidedDepthUsdc} USDC of depth on the thinner side on average. ${t.makersPaid} makers shared ${t.paidUsdc} of the ${t.budgetUsdc} USDC budget, which works out to ${t.costPer1kDepthUsdc} USDC per $1k of depth; the largest maker took ${t.topMakerSharePct}%.${change} ${tip}`;
 }
 
+/** Browser-safe: the browser runs this with its own model on epoch files it downloaded (same facts, same guard). */
 export async function writeEpochReport(epoch: EpochFile, prev: EpochFile | null, llm: LLM | null) {
   const facts = reportFacts(epoch, prev);
-  let writtenBy: "model" | "template" = "template";
-  let text = templateReport(facts);
-  let attempts: { ungrounded: string[] }[] = [];
-  if (llm) {
-    try {
-      const g = await groundedText((fb) => llm.text(SYSTEM, `Facts (JSON):\n${JSON.stringify(facts)}${fb ? `\n\n${fb}` : ""}`), facts);
-      attempts = g.attempts;
-      if (g.text) {
-        text = g.text;
-        writtenBy = "model";
-      }
-    } catch {
-      /* keep template */
-    }
-  }
-  return { markdown: text, facts, root: epoch.root, ai: { provider: llm?.provider ?? "off", model: llm?.model ?? null, writtenBy, groundingAttempts: attempts } };
+  const r = await narrate(llm, REPORT_SYSTEM, facts, templateReport(facts));
+  return { markdown: r.text, facts, root: epoch.root, ai: { provider: llm?.provider ?? "off", model: llm?.model ?? null, writtenBy: r.by, groundingAttempts: r.attempts, error: r.error } };
 }

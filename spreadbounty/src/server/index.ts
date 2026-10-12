@@ -18,7 +18,7 @@ import { BLOCK_SECONDS, DEFAULT_RPC } from "../core/chain";
 import { epochMetrics, type Campaign, type EpochFile } from "../core/epoch";
 import { leafHash, merkleProof, verifyProof } from "../core/score";
 import { aiConfig, getLLM, type LLM } from "../ai/llm";
-import { designCampaign, PAIRS } from "../ai/pipeline";
+import { designCampaign, IntentSchema, PAIRS } from "../ai/pipeline";
 import { writeEpochReport } from "../ai/report";
 import { getSource, recentHistory, type DataSource } from "../data/source";
 import { compareStrategies } from "../bot/sim";
@@ -195,7 +195,8 @@ async function exclusive<T>(ctx: Ctx, kind: keyof typeof CONCURRENCY, fn: () => 
 
 // ---------------- AI routes (gamma's A6 extension points) ----------------
 /** POST /api/copilot body. A6 adds `intent?` (IntentSchema) and `brief?: "server" | "none"` here. Unknown keys are stripped. */
-export const CopilotIn = z.object({ goal: z.string().min(3).max(1000) });
+// A6 (gamma): optional browser-read intent and brief mode for BYO-model runs; strict zod so nothing else gets through.
+export const CopilotIn = z.object({ goal: z.string().min(3).max(1000), intent: IntentSchema.optional(), brief: z.enum(["server", "none"]).optional() });
 
 /** POST /api/copilot: streams one JSON object per line (steps, then the result). At most 2 run at once, server-wide. */
 async function copilot(req: IncomingMessage, res: ServerResponse, ctx: Ctx) {
@@ -205,7 +206,8 @@ async function copilot(req: IncomingMessage, res: ServerResponse, ctx: Ctx) {
     res.writeHead(200, { "content-type": "application/x-ndjson", "cache-control": "no-store" });
     const line = (o: unknown) => res.write(JSON.stringify(o) + "\n");
     try {
-      const r = await designCampaign(parsed.data.goal, ctx.src, ctx.llm(), (s) => line({ type: "step", ...s }));
+      const { goal, intent, brief } = parsed.data; // A6 (gamma): optional browser-read intent and brief mode
+      const r = await designCampaign(goal, ctx.src, ctx.llm(), (s) => line({ type: "step", ...s }), { intent, brief });
       line({ type: "result", ...r });
     } catch (e) {
       line({ type: "error", ...internalError(e, ctx.log) });
