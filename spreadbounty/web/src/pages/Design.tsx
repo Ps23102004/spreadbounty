@@ -5,6 +5,7 @@ import { api, fmt, type Config } from "../api";
 import { openAccount, refreshSession, short, useSession } from "../ui/AccountDialog";
 import { Provenance } from "../ui/bits";
 import { Bars, ViewToggle } from "../ui/charts";
+import { LedgerTable } from "../ui/LedgerTable";
 import { MarginNote } from "../ui/MarginNote";
 import { useWriterSettings } from "../ui/ModelDialog";
 import { makePacer, type TapeLine } from "../ui/pacer";
@@ -203,20 +204,17 @@ export function Design({ config, onPublished }: { config: Config | null; onPubli
         <Schedule id="B-4" title="Every setting tried" desc="Same history, same budget. The rule: within 5 points of the best coverage, take your band if you named one, else the tightest; ties go to the cheaper."
           aside={<ViewToggle table={table} setTable={setTable} />} source={label}>
           {table ? (
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Band</th><th className="r">Min rest</th><th className="r">Two-sided</th><th className="r">Depth ({quote})</th><th className="r">Cost/day per $1k</th><th className="r">Makers</th><th className="r">Top maker</th></tr></thead>
-                <tbody>
-                  {r.candidates.map((c) => (
-                    <tr key={candKey(c)} className={candKey(c) === candKey(r.recommended) ? "highlight" : ""}>
-                      <td>{c.bandBps} bps</td><td className="r">{c.minRestBlocks}</td><td className="r">{fmt.pct(c.twoSidedCoveragePct)}</td>
-                      <td className="r">{fmt.n(c.avgDepthUsdc)}</td><td className="r">{c.costPerDayPer1kDepth === null ? "–" : fmt.usd(c.costPerDayPer1kDepth)}</td>
-                      <td className="r">{c.makers}</td><td className="r">{fmt.pct(c.topMakerSharePct)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LedgerTable rows={r.candidates} rowKey={candKey} caption="Every setting tried"
+              rowClass={(c) => (candKey(c) === candKey(r.recommended) ? "highlight circled" : undefined)}
+              cols={[
+                { key: "band", head: "Band", cell: (c) => `${c.bandBps} bps` },
+                { key: "rest", head: "Min rest", num: true, cell: (c) => c.minRestBlocks },
+                { key: "cov", head: "Two-sided", num: true, cell: (c) => fmt.pct(c.twoSidedCoveragePct) },
+                { key: "depth", head: `Depth (${quote})`, num: true, cell: (c) => fmt.n(c.avgDepthUsdc) },
+                { key: "cost", head: "Cost/day per $1k", num: true, cell: (c) => (c.costPerDayPer1kDepth === null ? "–" : fmt.usd(c.costPerDayPer1kDepth)) },
+                { key: "makers", head: "Makers", num: true, cell: (c) => c.makers },
+                { key: "top", head: "Top maker", num: true, cell: (c) => fmt.pct(c.topMakerSharePct) },
+              ]} />
           ) : (
             <div className="bars-2">
               <div className="stack">

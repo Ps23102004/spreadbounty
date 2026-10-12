@@ -229,7 +229,7 @@ export function Bars({ rows, max, unit, highlight, decimals }: { rows: { key: st
     <div className="stack" style={{ gap: 6 }}>
       {rows.map((r, i) => (
         <div key={r.key} className={`hbar${r.key === highlight ? " on" : ""}`}>
-          <span className="hbar-label">{r.label}</span>
+          <span className="hbar-label">{r.key === highlight ? <span className="circled-label">{r.label}</span> : r.label}</span>
           <span className="track">
             <motion.span className="bar" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: (r.value ?? 0) / top }} transition={{ duration: T.scene, delay: Math.min(i * 0.03, 0.3), ease: EASE_ENTER }} />
           </span>

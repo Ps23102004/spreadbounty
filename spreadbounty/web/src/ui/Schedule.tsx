@@ -24,13 +24,13 @@ export function Schedule({ id, title, desc, source, footer, children, className 
       <header className="sch-head">
         <div className="sch-title">
           <h2 id={hid}>{title}</h2>
-          {desc && <p className="sch-desc">{desc}</p>}
         </div>
         <div className="sch-corner">
           {aside}
           {source}
           <span className="sch-ref" aria-label={`Schedule ${id}`}>{id}</span>
         </div>
+        {desc && <p className="sch-desc">{desc}</p>}
       </header>
       {children}
       {footer && <footer className="sch-foot">{footer}</footer>}
@@ -52,12 +52,19 @@ export function ErrorNote({ children, onRetry }: { children: ReactNode; onRetry?
   );
 }
 
-/** Make markets sub-tabs; #claim deep-links here and keeps the Make markets index tab lit. */
-export function MarketTabs({ on }: { on: "makers" | "claim" }) {
+/** Make markets sub-tabs. Each is a hash route (#makers, #makers/rest, #makers/run, #claim), so every one deep-links. */
+const SUBTABS = [
+  { id: "backtest", href: "#makers", label: "Backtest" },
+  { id: "rest", href: "#makers/rest", label: "Rest clock" },
+  { id: "run", href: "#makers/run", label: "Run it" },
+  { id: "claim", href: "#claim", label: "Claim" },
+] as const;
+export type MarketTab = (typeof SUBTABS)[number]["id"];
+
+export function MarketTabs({ on }: { on: MarketTab }) {
   return (
     <nav className="subtabs" aria-label="Make markets">
-      <a href="#makers" aria-current={on === "makers" ? "page" : undefined}>Backtest and run</a>
-      <a href="#claim" aria-current={on === "claim" ? "page" : undefined}>Claim</a>
+      {SUBTABS.map((t) => <a key={t.id} href={t.href} aria-current={on === t.id ? "page" : undefined}>{t.label}</a>)}
     </nav>
   );
 }

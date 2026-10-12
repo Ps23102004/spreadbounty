@@ -122,4 +122,26 @@ const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
   ok("session: no /api/me call without a live hint; 401 and {address:null} both mean signed out and clear the hint; storage holds only a timestamp");
 }
 
+
+// ---------- B3: the sampling strip redoes the draw from the epoch file, and a moved sample fails ----------
+{
+  const { explainSample } = await import("../web/src/ui/sampling");
+  const { pickSampleBlocks } = await import("../src/core/score");
+  let n = 0;
+  for (const k of [0, 1, 2]) {
+    const f = JSON.parse(readFileSync(`out/demo/ausd-usdc-demo/epoch-${k}.json`, "utf8")) as EpochFile;
+    const every = f.campaign.sampleEvery;
+    const core = await pickSampleBlocks(f.fromBlock, f.toBlock, every, async (b) => ethers.utils.id(`spreadbounty-demo-block-${b}`));
+    assert.deepEqual(f.samples.map((s) => s.block), core, "the epoch file holds the scorer's sample blocks");
+    for (const s of f.samples) {
+      const e = explainSample(s, every);
+      assert.ok(e.agrees && e.start + e.offset === s.block && e.offset >= 0 && e.offset < every, `sample ${s.block}`);
+      n++;
+    }
+    const moved = { ...f.samples[0]!, block: f.samples[0]!.block + 1 };
+    assert.equal(explainSample(moved, every).agrees, false, "a sample block moved by one fails the rule");
+  }
+  ok(`sampling strip: ${n} demo samples redo as window start + hash mod sampleEvery, matching pickSampleBlocks; a moved sample fails`);
+}
+
 console.log(`${n} tests passed`);
