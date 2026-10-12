@@ -72,4 +72,76 @@ const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
   ok(`recompute (shared by Start and Verify): demo epochs 0-2 verify (root ${good.recomputed.slice(0, 10)}…); forged epoch 2 fails on cumulative and root`);
 }
 
+
+// ---------- A5: the session store asks GET /api/me only when this browser may hold a session ----------
+{
+  const mem = new Map<string, string>();
+  (globalThis as any).localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, String(v)), removeItem: (k: string) => void mem.delete(k) };
+  const calls: string[] = [];
+  let reply: { status: number; body: unknown } = { status: 401, body: { error: "Not signed in." } };
+  (globalThis as any).fetch = async (url: string) => {
+    calls.push(url);
+    return new Response(JSON.stringify(reply.body), { status: reply.status, headers: { "content-type": "application/json" } });
+  };
+  const s = await import("../web/src/ui/session");
+  let now = s.getSession();
+  assert.equal(now.checked, false);
+
+  await s.refreshSession();
+  assert.equal(calls.length, 0, "a visitor who never signed in here makes no request, so no 401 reaches the console");
+  assert.equal(s.getSession().checked, true);
+  assert.equal(s.getSession().address, null);
+
+  s.setHint(Date.now() + 60_000);
+  await s.refreshSession();
+  assert.deepEqual(calls, ["/api/me"], "a live hint asks the server");
+  assert.equal(s.getSession().address, null, "401 means signed out");
+  assert.equal(mem.size, 0, "a 401 clears the hint, so the next load stays quiet");
+
+  s.setHint(Date.now() + 60_000);
+  reply = { status: 200, body: { address: null } };
+  await s.refreshSession();
+  assert.equal(s.getSession().address, null, "200 with address null means signed out");
+  assert.equal(mem.size, 0);
+
+  s.setHint(Date.now() + 60_000);
+  const roles = { sponsorOf: ["x"], makerIn: [] };
+  reply = { status: 200, body: { address: "0xAbC0000000000000000000000000000000000001", roles } };
+  await s.refreshSession();
+  now = s.getSession();
+  assert.equal(now.address, "0xAbC0000000000000000000000000000000000001");
+  assert.deepEqual(now.roles, roles);
+  assert.equal(mem.size, 1, "a live session keeps its hint");
+
+  s.setHint(Date.now() - 1);
+  calls.length = 0;
+  await s.refreshSession();
+  assert.equal(calls.length, 0, "an expired hint is the same as none");
+  assert.equal(s.getSession().address, null);
+  assert.ok(![...mem.values()].some((v) => /0x|sess|sig/i.test(v)), "the browser keeps a timestamp, never a token or address");
+  ok("session: no /api/me call without a live hint; 401 and {address:null} both mean signed out and clear the hint; storage holds only a timestamp");
+}
+
+
+// ---------- B3: the sampling strip redoes the draw from the epoch file, and a moved sample fails ----------
+{
+  const { explainSample } = await import("../web/src/ui/sampling");
+  const { pickSampleBlocks } = await import("../src/core/score");
+  let n = 0;
+  for (const k of [0, 1, 2]) {
+    const f = JSON.parse(readFileSync(`out/demo/ausd-usdc-demo/epoch-${k}.json`, "utf8")) as EpochFile;
+    const every = f.campaign.sampleEvery;
+    const core = await pickSampleBlocks(f.fromBlock, f.toBlock, every, async (b) => ethers.utils.id(`spreadbounty-demo-block-${b}`));
+    assert.deepEqual(f.samples.map((s) => s.block), core, "the epoch file holds the scorer's sample blocks");
+    for (const s of f.samples) {
+      const e = explainSample(s, every);
+      assert.ok(e.agrees && e.start + e.offset === s.block && e.offset >= 0 && e.offset < every, `sample ${s.block}`);
+      n++;
+    }
+    const moved = { ...f.samples[0]!, block: f.samples[0]!.block + 1 };
+    assert.equal(explainSample(moved, every).agrees, false, "a sample block moved by one fails the rule");
+  }
+  ok(`sampling strip: ${n} demo samples redo as window start + hash mod sampleEvery, matching pickSampleBlocks; a moved sample fails`);
+}
+
 console.log(`${n} tests passed`);

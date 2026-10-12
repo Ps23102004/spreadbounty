@@ -1,5 +1,5 @@
 /** One printed tape line. Symbols as on a real adding machine: # count or id, + sum, ◇ subtotal, * final total, ≠ mismatch. */
-export interface TapeLine { id: string; fig: string; text: string; sym: "#" | "+" | "◇" | "*" | "≠"; red?: boolean }
+export interface TapeLine { id: string; fig: string; text: string; sym: "#" | "+" | "◇" | "*" | "≠"; red?: boolean; note?: boolean }
 
 /**
  * Display pacing for the tape: holds at least `gap` ms between lines so fast steps stay readable,

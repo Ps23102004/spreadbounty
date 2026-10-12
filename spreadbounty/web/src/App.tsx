@@ -23,8 +23,9 @@ const TABS = [
 const ROUTES = ["start", "overview", "design", "makers", "claim", "verify"] as const;
 type PageId = (typeof ROUTES)[number];
 
-const pageFromHash = (): PageId => {
-  const h = location.hash.replace("#", "") as PageId;
+/** "#makers/rest" is page "makers", sub-tab "rest". */
+const pageOf = (hash: string): PageId => {
+  const h = hash.replace("#", "").split("/")[0] as PageId;
   return ROUTES.includes(h) ? h : "start";
 };
 const tabOf = (p: PageId) => (p === "claim" ? "makers" : p);
@@ -42,16 +43,18 @@ const EASE_EXIT = [0.7, 0, 0.84, 0] as const;
 const EASE_MOVE = [0.65, 0, 0.35, 1] as const;
 
 export function App() {
-  const [page, setPage] = useState<PageId>(pageFromHash);
+  const [hash, setHash] = useState(location.hash);
+  const page = pageOf(hash);
+  const sub = hash.split("/")[1] ?? "";
   const [config, setConfig] = useState<Config | null>(null);
-  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignRow[] | null>(null); // null until the server answers
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const session = useSession();
 
   useEffect(() => {
-    const on = () => setPage(pageFromHash());
+    const on = () => setHash(location.hash);
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
@@ -78,8 +81,8 @@ export function App() {
   }, [refresh]);
   useEffect(load, [load]);
 
-  const campaign = campaigns.find((c) => c.id === campaignId) ?? null;
-  const go = (id: PageId) => (location.hash = id);
+  const campaign = campaigns?.find((c) => c.id === campaignId) ?? null;
+  const status = campaigns ? "ready" : error ? "error" : "loading";
   const skip = (e: MouseEvent) => {
     e.preventDefault(); // the hash is the router; don't navigate
     document.getElementById("content")?.focus();
@@ -114,7 +117,7 @@ export function App() {
             {label}
             <WriterChip config={config} />
             <RoleChip session={session} />
-            <WalletButton session={session} />
+            <WalletButton session={session} config={config} />
             <span className="theme-top">{themeBtn}</span>
           </div>
         </div>
@@ -136,11 +139,11 @@ export function App() {
             exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_EXIT } }}
           >
             {page === "start" && <Start campaign={campaign} config={config} />}
-            {page === "overview" && <Overview campaign={campaign} campaigns={campaigns} onPick={setCampaignId} config={config} onDesign={() => go("design")} />}
-            {page === "design" && config && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
-            {page === "makers" && <Makers campaign={campaign} />}
+            {page === "overview" && <Overview key={campaign?.id ?? "none"} campaign={campaign} campaigns={campaigns ?? []} status={status} onPick={setCampaignId} config={config} onRetry={load} />}
+            {page === "design" && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
+            {page === "makers" && <Makers campaign={campaign} status={status} config={config} sub={sub} />}
             {page === "verify" && <Verify campaign={campaign} config={config} />}
-            {page === "claim" && <Claim campaign={campaign} config={config} />}
+            {page === "claim" && <Claim campaign={campaign} config={config} status={status} />}
           </motion.div>
         </AnimatePresence>
       </main>

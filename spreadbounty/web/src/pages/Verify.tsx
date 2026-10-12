@@ -6,6 +6,7 @@ import { Tape } from "../ui/Tape";
 import { Tick } from "../ui/Tick";
 import { useRecompute } from "../ui/useRecompute";
 import { HashDiff } from "../ui/HashDiff";
+import { SamplingStrip } from "../ui/SamplingStrip";
 
 /** W/P V: the full recompute. Same `useRecompute` as Start, so both reach the same verdict for the same epoch. */
 export function Verify({ campaign, config }: { campaign: CampaignRow | null; config: Config | null }) {
@@ -89,6 +90,10 @@ export function Verify({ campaign, config }: { campaign: CampaignRow | null; con
           </table>
         </Schedule>
       </div>
+
+      <Schedule id="V-4" title="Sampling strip" desc={`Which blocks counted in epoch ${rc.n ?? ""}, and why nobody could choose them in advance.`} source={label}>
+        <SamplingStrip campaign={campaign} n={rc.n} demo={rc.demo} />
+      </Schedule>
 
       <Schedule id="V-5" title="What this proves, plainly">
         {rc.demo ? (

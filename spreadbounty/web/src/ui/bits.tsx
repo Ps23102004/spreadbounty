@@ -29,17 +29,17 @@ export function Steps({ items }: { items: { key: string; title: ReactNode; detai
   );
 }
 
-/** Where a piece of text came from: which model, and whether its numbers passed the grounding check. */
-export function Provenance({ by, provider, model, attempts }: { by: "model" | "template"; provider: string; model: string | null; attempts: { ungrounded: string[] }[] }) {
+/** Where a piece of text came from: which model, where it ran, and whether its numbers passed the grounding check. */
+export function Provenance({ by, provider, model, attempts, where }: { by: "model" | "template"; provider: string; model: string | null; attempts: { ungrounded: string[] }[]; where?: "browser" | "server" }) {
   const rejected = attempts.filter((a) => a.ungrounded.length);
   return (
     <div className="provenance">
       {by === "model" ? (
-        <span className="badge accent">Written by {model ?? provider}</span>
+        <span className="badge accent">Written by {model ?? provider}{where === "browser" ? " in your browser" : where === "server" ? " on this server" : ""}</span>
       ) : (
-        <span className="badge">{provider === "off" ? "Template (no model configured)" : "Template fallback"}</span>
+        <span className="badge">{provider === "off" ? "Template, no model chosen" : "Template fallback"}</span>
       )}
-      {by === "model" && <span className="badge good">Every number matched the epoch data</span>}
+      {by === "model" && <span className="badge good">Every number matched the data</span>}
       {rejected.length > 0 && (
         <span title={rejected.map((a) => a.ungrounded.join(", ")).join(" | ")}>
           {by === "model" ? "Earlier draft" : `${rejected.length} model draft${rejected.length > 1 ? "s" : ""}`} rejected for invented numbers: <span className="mono">{rejected.flatMap((a) => a.ungrounded).slice(0, 4).join(", ")}</span>
