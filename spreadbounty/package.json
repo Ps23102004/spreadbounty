@@ -21,13 +21,14 @@
     "drop": "tsx src/drop/main.ts",
     "test:drop": "npm run --silent demo:gen && tsx test/drop.test.ts",
     "localchain": "tsx test/local-chain.ts",
-    "test:all": "npm test && npm run test:boundary && npm run test:ai && npm run test:bot && npm run test:drop",
-    "test:boundary": "tsx test/boundary.test.ts"
+    "test:all": "npm test && npm run test:boundary && npm run test:ai && npm run test:bot && npm run test:drop && npm run test:server",
+    "test:boundary": "tsx test/boundary.test.ts",
+    "test:server": "npm run --silent demo:gen && tsx test/server.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
     "dotenv": "16.4.5",
-    "ethers": "5.7.1",
+    "ethers": "5.8.0",
     "motion": "13.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
