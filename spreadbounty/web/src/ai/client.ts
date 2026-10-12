@@ -6,10 +6,10 @@
  *   4. grounding guard     inside narrate(): src/ai/grounding.ts, the same check the server runs
  * Epoch reports never touch the server's model: the browser downloads the epoch files and runs writeEpochReport.
  * Requests to this app's own origin carry no key header; keys only go to the chosen provider (test/byo.test.ts).
+ * Import it statically: the model code (adapters, prompts, zod) is loaded on first use, outside the main chunk.
  */
-import { BRIEF_SYSTEM, narrate, readIntent, templateBrief, type BriefFacts } from "../../../src/ai/prompts";
 import type { LLM } from "../../../src/ai/http";
-import { writeEpochReport } from "../../../src/ai/report";
+import type { BriefFacts } from "../../../src/ai/prompts";
 import { api, type DesignResult, type EpochFile, type Report, type Step } from "../api";
 import { getKey, loadSettings } from "./keys";
 import { buildLLM } from "./providers";
@@ -21,14 +21,14 @@ export type WriterReport = Report & { ai: Report["ai"] & Where };
 export type StepNote = Step & { note?: string };
 
 /** The Writer picked in the model dialog. `llm` is null for None (rules and templates) and for This server. */
-export function currentWriter() {
+export async function currentWriter() {
   const settings = loadSettings();
-  return { settings, llm: buildLLM(settings, getKey(settings.provider)) };
+  return { settings, llm: await buildLLM(settings, getKey(settings.provider)) };
 }
 
 /** Design page entry point: replaces api.copilot. */
 export async function design(goal: string, onStep: (s: StepNote) => void, signal?: AbortSignal): Promise<WriterDesign> {
-  const { settings, llm } = currentWriter();
+  const { settings, llm } = await currentWriter();
   if (settings.provider === "server") {
     const r = await api.copilot(goal, onStep, signal);
     return { ...r, ai: { ...r.ai, where: "server", notes: [] } };
@@ -38,7 +38,7 @@ export async function design(goal: string, onStep: (s: StepNote) => void, signal
 
 /** Overview's epoch report entry point: replaces api.report. */
 export async function report(campaignId: string, n: number): Promise<WriterReport> {
-  const { settings, llm } = currentWriter();
+  const { settings, llm } = await currentWriter();
   if (settings.provider === "server") {
     const r = await api.report(campaignId, n);
     return { ...r, ai: { ...r.ai, where: "server", notes: [] } };
@@ -48,11 +48,13 @@ export async function report(campaignId: string, n: number): Promise<WriterRepor
 }
 
 export async function reportInBrowser(epoch: EpochFile, prev: EpochFile | null, llm: LLM | null): Promise<WriterReport> {
+  const { writeEpochReport } = await import("../../../src/ai/report");
   const r = await writeEpochReport(epoch, prev, llm);
   return { markdown: r.markdown, root: r.root, ai: { ...r.ai, where: "browser", notes: r.ai.error ? [`${r.ai.error} Used the template instead.`] : [] } };
 }
 
 export async function designInBrowser(goal: string, llm: LLM | null, onStep: (s: StepNote) => void, signal?: AbortSignal): Promise<WriterDesign> {
+  const { BRIEF_SYSTEM, narrate, readIntent, templateBrief } = await import("../../../src/ai/prompts");
   const who = llm ? `${llm.model} in your browser` : "rules";
   const notes: string[] = [];
   onStep({ step: "intent", status: "running", detail: who });
@@ -85,9 +87,9 @@ async function postCopilot(body: object, signal: AbortSignal | undefined, onStep
   if (!r.ok || !r.body) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? `copilot failed (${r.status})`);
   const reader = r.body.getReader();
   const dec = new TextDecoder();
-  let buf = "";
+  let buf = "", result: WriterDesign | null = null;
   for (;;) {
-    const { done, value } = await reader.read();
+    const { done, value } = await reader.read(); // read to the end so the request completes cleanly
     buf += dec.decode(value, { stream: !done });
     let i: number;
     while ((i = buf.indexOf("\n")) >= 0) {
@@ -96,9 +98,12 @@ async function postCopilot(body: object, signal: AbortSignal | undefined, onStep
       if (!line) continue;
       const msg = JSON.parse(line);
       if (msg.type === "step") onStep(msg as StepNote);
-      else if (msg.type === "result") return msg as WriterDesign;
+      else if (msg.type === "result") result = msg as WriterDesign;
       else if (msg.type === "error") throw new Error(msg.error);
     }
-    if (done) throw new Error("copilot stream ended without a result");
+    if (done) {
+      if (result) return result;
+      throw new Error("copilot stream ended without a result");
+    }
   }
 }

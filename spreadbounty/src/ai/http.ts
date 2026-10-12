@@ -106,7 +106,11 @@ export function openaiCompatible(o: { baseUrl: string; model: string; key?: stri
       // ponytail: 4x headroom because reasoning tokens count against the cap; expose a setting if replies come back empty
       j = await send({ ...rest, max_completion_tokens: Number(max_tokens ?? 800) * 4 });
     }
-    return { content: j?.choices?.[0]?.message?.content ?? "", model: String(j?.model ?? o.model) };
+    const choice = j?.choices?.[0];
+    const content: string = choice?.message?.content ?? "";
+    // a reply cut off by the token cap ends mid-sentence: keep the complete sentences
+    const cut = choice?.finish_reason === "length" ? content.slice(0, content.lastIndexOf(".") + 1) : content;
+    return { content: cut, model: String(j?.model ?? o.model) };
   };
   return {
     provider: o.provider ?? "local",
@@ -129,7 +133,7 @@ export function openaiCompatible(o: { baseUrl: string; model: string; key?: stri
       }
       return null;
     },
-    async text(system, user, maxTokens = 900) {
+    async text(system, user, maxTokens = 2000) { // thinking models spend part of the cap on reasoning
       const { content } = await chat({ messages: [{ role: "system", content: system }, { role: "user", content: user }], max_tokens: maxTokens });
       return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim() || null; // strip reasoning traces some local models emit
     },
