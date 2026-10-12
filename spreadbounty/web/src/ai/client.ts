@@ -5,19 +5,26 @@
  *   3. write the brief     narrate() over the facts the server returned
  *   4. grounding guard     inside narrate(): src/ai/grounding.ts, the same check the server runs
  * Epoch reports never touch the server's model: the browser downloads the epoch files and runs writeEpochReport.
+ * The decision model (B2, ./writer.ts) runs beside both: it reads the sponsor's sentence in parallel with the pipeline,
+ * and checks every sentence a model wrote against its facts. It adds `judge` and can swap model text for the template;
+ * it never changes the campaign, the candidates or any number (test/judge.test.ts).
  * Requests to this app's own origin carry no key header; keys only go to the chosen provider (test/byo.test.ts).
  * Import it statically: the model code (adapters, prompts, zod) is loaded on first use, outside the main chunk.
  */
 import type { LLM } from "../../../src/ai/http";
+import type { Judge } from "../../../src/ai/judge";
 import type { BriefFacts } from "../../../src/ai/prompts";
+import type { reportFacts } from "../../../src/ai/report";
 import { api, type DesignResult, type EpochFile, type Report, type Step } from "../api";
 import { getKey, loadSettings } from "./keys";
 import { buildLLM } from "./providers";
 
 /** Where the words came from, plus any per-step fallback messages ("Anthropic rejected the key (401). Used rules instead."). */
 type Where = { where: "browser" | "server"; notes: string[] };
-export type WriterDesign = DesignResult & { facts?: BriefFacts; ai: DesignResult["ai"] & Where };
-export type WriterReport = Report & { ai: Report["ai"] & Where };
+/** `judge` is absent when no decision model answered: the result is then exactly what it was before B2. */
+export type WriterDesign = DesignResult & { facts?: BriefFacts; ai: DesignResult["ai"] & Where; judge?: Judge };
+export type WriterReport = Report & { facts?: ReturnType<typeof reportFacts>; ai: Report["ai"] & Where; judge?: Judge };
+export type { Judge };
 export type StepNote = Step & { note?: string };
 
 /** The Writer picked in the model dialog. `llm` is null for None (rules and templates) and for This server. */
@@ -29,28 +36,56 @@ export async function currentWriter() {
 /** Design page entry point: replaces api.copilot. */
 export async function design(goal: string, onStep: (s: StepNote) => void, signal?: AbortSignal): Promise<WriterDesign> {
   const { settings, llm } = await currentWriter();
+  const asked = judge().then((w) => w.judgeGoal(goal, signal)).catch(() => null); // in parallel with the whole pipeline
+  let r: WriterDesign;
   if (settings.provider === "server") {
-    const r = await api.copilot(goal, onStep, signal);
-    return { ...r, ai: { ...r.ai, where: "server", notes: [] } };
+    const s = await api.copilot(goal, onStep, signal);
+    r = { ...s, ai: { ...s.ai, where: "server", notes: [] } };
+  } else r = await designInBrowser(goal, llm, onStep, signal);
+  const facts = r.facts;
+  const check = r.ai.briefBy === "model" && facts ? await checkText(r.brief, facts, signal) : null;
+  if (check?.unsupported?.length && facts) {
+    const { templateBrief } = await import("../../../src/ai/prompts");
+    r = { ...r, brief: templateBrief(facts), ai: { ...r.ai, briefBy: "template", notes: [...r.ai.notes, UNSUPPORTED] } };
   }
-  return designInBrowser(goal, llm, onStep, signal);
+  return withJudge(r, await asked, check);
 }
 
 /** Overview's epoch report entry point: replaces api.report. */
 export async function report(campaignId: string, n: number): Promise<WriterReport> {
   const { settings, llm } = await currentWriter();
+  let r: WriterReport;
   if (settings.provider === "server") {
-    const r = await api.report(campaignId, n);
-    return { ...r, ai: { ...r.ai, where: "server", notes: [] } };
+    const s = await api.report(campaignId, n);
+    r = { ...s, ai: { ...s.ai, where: "server", notes: [] } };
+  } else {
+    const [epoch, prev] = await Promise.all([api.epoch(campaignId, n), n > 0 ? api.epoch(campaignId, n - 1).catch(() => null) : null]);
+    r = await reportInBrowser(epoch, prev, llm);
   }
-  const [epoch, prev] = await Promise.all([api.epoch(campaignId, n), n > 0 ? api.epoch(campaignId, n - 1).catch(() => null) : null]);
-  return reportInBrowser(epoch, prev, llm);
+  const facts = r.facts;
+  const check = r.ai.writtenBy === "model" && facts ? await checkText(r.markdown, facts) : null;
+  if (check?.unsupported?.length && facts) {
+    const { templateReport } = await import("../../../src/ai/report");
+    r = { ...r, markdown: templateReport(facts), ai: { ...r.ai, writtenBy: "template", notes: [...r.ai.notes, UNSUPPORTED] } };
+  }
+  return withJudge(r, null, check);
+}
+
+// ---------------- the decision model (B2) ----------------
+const judge = () => import("./writer");
+const UNSUPPORTED = "The decision model could not match a sentence to the facts. Used the template instead.";
+const checkText = (text: string, facts: object, signal?: AbortSignal) => judge().then((w) => w.judgeText(text, facts, signal)).catch(() => null);
+
+/** Adds `judge` only when a decision model answered; otherwise the result is returned untouched. */
+function withJudge<T extends object>(r: T, asked: Judge | null, check: Judge | null): T & { judge?: Judge } {
+  if (!asked && !check) return r;
+  return { ...r, judge: { flags: asked?.flags ?? [], ...(asked?.needsPair ? { needsPair: asked.needsPair } : {}), ...(check ? { unsupported: check.unsupported ?? [] } : {}), by: asked?.by ?? check?.by } };
 }
 
 export async function reportInBrowser(epoch: EpochFile, prev: EpochFile | null, llm: LLM | null): Promise<WriterReport> {
   const { writeEpochReport } = await import("../../../src/ai/report");
   const r = await writeEpochReport(epoch, prev, llm);
-  return { markdown: r.markdown, root: r.root, ai: { ...r.ai, where: "browser", notes: r.ai.error ? [`${r.ai.error} Used the template instead.`] : [] } };
+  return { markdown: r.markdown, root: r.root, facts: r.facts, ai: { ...r.ai, where: "browser", notes: r.ai.error ? [`${r.ai.error} Used the template instead.`] : [] } };
 }
 
 export async function designInBrowser(goal: string, llm: LLM | null, onStep: (s: StepNote) => void, signal?: AbortSignal): Promise<WriterDesign> {

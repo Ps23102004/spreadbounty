@@ -20,6 +20,7 @@ import { leafHash, merkleProof, verifyProof } from "../core/score";
 import { aiConfig, getLLM, type LLM } from "../ai/llm";
 import { designCampaign, IntentSchema, PAIRS } from "../ai/pipeline";
 import { writeEpochReport } from "../ai/report";
+import { judgeRequest, judgeSupport, JudgeError, systemOne, TYPESAFE_URL } from "../ai/judge"; // B2 (gamma2)
 import { getSource, recentHistory, type DataSource } from "../data/source";
 import { compareStrategies } from "../bot/sim";
 import { ethers } from "ethers";
@@ -223,6 +224,35 @@ async function epochReport(_url: URL, ctx: Ctx, id: string, n: number, e: EpochF
   return writeEpochReport(e, prev, ctx.llm());
 }
 
+// ---- B2 (gamma2): POST /api/judge, the decision model. Begin marked edit. ----
+/** Either the sponsor's sentence, or model-written text plus the facts it was written from. Strict: no URL, no model, no questions. */
+export const JudgeIn = z.union([
+  z.strictObject({ goal: z.string().min(3).max(1000) }),
+  z.strictObject({ text: z.string().min(1).max(4000), facts: z.record(z.string(), z.unknown()) }),
+]);
+const TYPESAFE_KEY = /^[\x21-\x7e]{8,256}$/; // one printable token; anything else is ignored, never echoed
+
+/**
+ * Jev rejects browser origins, so this route calls it for the browser. One fixed upstream (TYPESAFE_URL); the server
+ * builds every question (src/ai/judge.ts). The key is the caller's `x-typesafe-key` header, else TYPESAFE_API_KEY; it
+ * goes only into the upstream Authorization header and is never logged, stored or echoed. No key, an upstream error or
+ * a timeout answers `{ judge: null }` with a readable note, and the page behaves exactly as without a judge.
+ */
+async function judgeRoute(req: IncomingMessage, env: NodeJS.ProcessEnv, ctx: Ctx) {
+  const body = parse(JudgeIn, await readJsonBody(req));
+  const header = req.headers["x-typesafe-key"];
+  const key = (typeof header === "string" && TYPESAFE_KEY.test(header) ? header : "") || env.TYPESAFE_API_KEY || "";
+  if (!key) return { judge: null, note: "No decision model on this server (TYPESAFE_API_KEY is not set)." };
+  const ask = systemOne({ url: TYPESAFE_URL, key, label: "TypeSafe", timeoutMs: 8_000 });
+  try {
+    return { judge: await exclusive(ctx, "model", () => ("goal" in body ? judgeRequest(body.goal, ask) : judgeSupport(body.text, body.facts, ask))) };
+  } catch (e) {
+    if (e instanceof JudgeError) return { judge: null, note: e.message };
+    throw e; // HttpError (busy) or a bug: the generic handler answers without detail
+  }
+}
+// ---- End B2 marked edit. ----
+
 // ---------------- campaigns ----------------
 /** POST /api/campaigns: signed-in sponsors only; the stored `sponsor` is always the session address. */
 async function publish(req: IncomingMessage, ctx: Ctx) {
@@ -384,6 +414,7 @@ export function createApp(opts: AppOptions = {}) {
       return send(res, 200, Object.fromEntries(await Promise.all(ns.map(async (n) => [n, await src.blockHash(n)]))));
     }
     if (p === "/api/copilot" && method === "POST") return copilot(req, res, ctx);
+    if (p === "/api/judge" && method === "POST") return send(res, 200, await judgeRoute(req, env, ctx)); // B2 (gamma2)
 
     // ---- sign-in (A5): reading, verifying and claim lookups never need it; only publishing does ----
     if (p === "/api/auth/nonce" && method === "GET") {

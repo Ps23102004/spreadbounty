@@ -1,6 +1,8 @@
 /**
  * Browser-only model settings and API keys. Nothing in this file is ever sent to this app's server
- * (web/src/api.ts may not import it: test/boundary.test.ts).
+ * (web/src/api.ts may not import it: test/boundary.test.ts), with one exception: the decision model's TypeSafe key.
+ * TypeSafe rejects browser origins, so web/src/ai/writer.ts sends that key to POST /api/judge as `x-typesafe-key`;
+ * the server forwards it to api.typesafe.ai only and never stores, logs or echoes it.
  *   - preferences (provider, model id, local base URL): localStorage, they hold no secret
  *   - keys: sessionStorage, gone when the tab closes; also localStorage only after "Remember on this device"
  *   - one key slot per provider, so a key typed for one provider is never sent to another
@@ -70,11 +72,27 @@ export function setKey(p: ProviderId, key: string, remember: boolean) {
   changed();
 }
 
-/** "Forget key": every provider's key, from both stores. */
+/** "Forget key": every provider's key and the decision model's key, from both stores. */
 export function forgetKeys() {
-  for (const p of PROVIDER_IDS) {
-    write("session", keyName(p), null);
-    write("local", keyName(p), null);
+  for (const k of [...PROVIDER_IDS.map(keyName), JUDGE_KEY]) {
+    write("session", k, null);
+    write("local", k, null);
   }
+  changed();
+}
+
+// ---- the decision model (B2): an optional TypeSafe key, or a local System One URL (Von / Laya) that needs none ----
+const JUDGE_KEY = "sb-judge-key", JUDGE_URL = "sb-judge-url";
+export const getJudgeKey = () => read("session", JUDGE_KEY) ?? read("local", JUDGE_KEY) ?? "";
+export function setJudgeKey(key: string, remember: boolean) {
+  const v = key.trim() || null;
+  write("session", JUDGE_KEY, v);
+  write("local", JUDGE_KEY, remember ? v : null);
+  changed();
+}
+/** A local server speaking POST /v1/systemone, e.g. http://localhost:8770/v1/systemone. Empty: use this server's /api/judge. */
+export const getJudgeUrl = () => read("local", JUDGE_URL) ?? "";
+export function setJudgeUrl(url: string) {
+  write("local", JUDGE_URL, url.trim() || null);
   changed();
 }

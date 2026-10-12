@@ -58,6 +58,18 @@ npm run mock:llm &
 AI_PROVIDER=local LOCAL_LLM_URL=http://localhost:11999/v1 LOCAL_LLM_MODEL=mock npm start
 ```
 
+### Decision model (optional): TypeSafe Jev
+
+A second, different kind of model can check the words. Set `TYPESAFE_API_KEY` on the server, and Design and the epoch report ask Jev, TypeSafe's System One model, for typed, calibrated judgments:
+
+- **Which book?** A Choice between AUSD/USDC, MON/USDC and none. If the answer is "none" or its confidence is under 0.7, the page asks "Which book?" instead of defaulting.
+- **Flags with fixed copy** (Nouls, raised at p ≥ 0.6). Volume: "This campaign pays for resting depth inside a band, not volume." Named makers: "Campaigns are open to every maker." Holding a price: "Depth rewards don't defend a peg." One side only: "One-sided quoting earns a third of the score."
+- **Claims, not just numbers.** One Noul per sentence of a model-written brief or report: is it supported by the facts JSON? Any sentence under 0.5 switches the text to the template and is named.
+
+The judge never changes a campaign, a candidate or a number (`test/judge.test.ts` checks that the campaign is byte-identical with and without it). With no key, an error or a timeout, the page behaves exactly as without it.
+
+Measured once against the real Jev (`jev-1.13.0`) on a 12-request handwritten fixture: **59/60 judgments right, 11/12 requests fully right, median 138 ms per request**. The untuned first wording scored 58/60. The per-sentence check flagged 8/8 invented claims. Details, misses and caveats: [docs/JUDGE.md](docs/JUDGE.md). A local System One server (Von or Laya speaking `POST /v1/systemone`) can be used from the browser with no key, but only for the question types it answers correctly when probed. The one local server probed here, the Laya cascade proxy, answered none, so no local judge is claimed.
+
 ## The app
 
 | Page | What it does |

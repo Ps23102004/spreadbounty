@@ -1,0 +1,17 @@
+{
+  "about": "12 handwritten sponsor requests with the judge output a careful reader expects. pair: the book, or \"ask\" when the request names none (the UI should ask \"Which book?\"). flags: codes from FLAG_COPY in src/ai/judge.ts. Hard negatives: #10 mentions fills but asks for depth; #12 says peg but only as the band's reference.",
+  "requests": [
+    { "request": "Agora wants AUSD/USDC tight around 1.0, $50/day, hourly epochs", "pair": "AUSD/USDC", "flags": [] },
+    { "request": "Deepen MON/USDC within 0.25%, about $700 a week", "pair": "MON/USDC", "flags": [] },
+    { "request": "We want more trading volume on MON/USDC. Pay makers per trade, $1,000 a week.", "pair": "MON/USDC", "flags": ["wants_volume"] },
+    { "request": "Pay Wintermute and GSR to quote AUSD/USDC within 10 bps, $40 a day", "pair": "AUSD/USDC", "flags": ["names_makers"] },
+    { "request": "Keep AUSD at exactly $1.00 no matter what, we need the peg defended. $200 a day.", "pair": "AUSD/USDC", "flags": ["price_promise"] },
+    { "request": "We only need bids on MON/USDC, nothing on the ask side, $300 a week", "pair": "MON/USDC", "flags": ["one_sided"] },
+    { "request": "Make our book deeper, $100 a day", "pair": "ask", "flags": [] },
+    { "request": "We'd like tighter spreads on Kuru, budget around $2k a month", "pair": "ask", "flags": [] },
+    { "request": "Reward the top 5 makers by fills on MON/USDC, $500 a week", "pair": "MON/USDC", "flags": ["wants_volume", "names_makers"] },
+    { "request": "Boost depth on MON/USDC so traders get better fills, $80 a day", "pair": "MON/USDC", "flags": [] },
+    { "request": "Stop MON from falling below $0.40 after the unlock by paying makers to hold bids, $1,500 a week", "pair": "MON/USDC", "flags": ["price_promise", "one_sided"] },
+    { "request": "Keep the AUSD book two-sided within 10 bps around the 1.0 peg, $30 a day", "pair": "AUSD/USDC", "flags": [] }
+  ]
+}
