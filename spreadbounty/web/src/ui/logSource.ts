@@ -9,7 +9,7 @@ export type LogSource = "rpc" | "bundle";
 /** The trust note shown whenever logs come from the server instead of the chain. */
 export const BUNDLE_NOTE = "logs come from this server's bundle; run `sb verify` for a chain-only check";
 
-const brief = (e: any) => String(e?.error?.message ?? e?.reason ?? e?.message ?? e).slice(0, 140);
+const brief = (e: any) => `${e?.status ? `HTTP ${e.status} ` : ""}${e?.error?.message ?? e?.reason ?? e?.message ?? e}`.slice(0, 140);
 
 /**
  * B1 (delta): a campaign's book logs straight from a Monad RPC, in the browser. Same code as the CLI:
@@ -28,9 +28,10 @@ export async function rpcLogs(
   const total = Math.ceil((to - from + 1) / 100);
   const get = p.getLogs.bind(p);
   let done = 0;
-  let failed = "";
+  let over = false; // set once the fetch gave up: the other workers stop asking and stop printing
+  const requestOf = new WeakMap<object, string>();
   p.getLogs = async (f: Parameters<typeof get>[0]) => {
-    if (on.stale()) throw new Error("stale run"); // a newer run started: stop asking the RPC
+    if (over || on.stale()) throw new Error("stopped"); // gave up, or a newer run started
     const { fromBlock, toBlock } = (await f) as ethers.providers.Filter;
     const request = `eth_getLogs ${host} blocks ${fromBlock}–${toBlock}`;
     try {
@@ -38,14 +39,15 @@ export async function rpcLogs(
       on.progress(++done, total);
       return logs;
     } catch (e) {
-      failed = request;
-      on.retry(request, brief(e));
+      if (e && typeof e === "object") requestOf.set(e, request);
+      if (!over) on.retry(request, brief(e));
       throw e;
     }
   };
   try {
     return await fetchBookLogs(p, market, from, to);
   } catch (e) {
-    throw new Error(`${failed || `eth_getLogs ${host}`} failed: ${brief(e)}`);
+    over = true;
+    throw new Error(`${(e && typeof e === "object" && requestOf.get(e)) || `eth_getLogs ${host}`} failed: ${brief(e)}`);
   }
 }

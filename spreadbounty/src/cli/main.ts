@@ -135,7 +135,7 @@ async function main() {
         writeFileSync(path, JSON.stringify(e, null, 2));
         writeFileSync(path.replace(".json", ".logs.json"), JSON.stringify(logs.filter((l) => l.blockNumber <= e.toBlock)));
         const x = epochMetrics(e);
-        console.log(`epoch ${n} (${x.blocks}): ${e.logCount} logs, ${x.samples} samples, two-sided ${x.twoSidedCoveragePct.toFixed(0)}%, ${x.makersPaid} makers would have earned ${x.paidRewardTokens} USDC, root ${e.root}`);
+        console.log(`epoch ${n} (${x.blocks}): ${e.logCount} logs since block ${from}, ${x.samples} samples, two-sided ${x.twoSidedCoveragePct.toFixed(0)}%, ${x.makersPaid} makers would have earned ${x.paidRewardTokens} USDC, root ${e.root}`);
         prev = e;
       }
       console.log(`would have earned, cumulative over ${epochs} epochs (nothing was paid):`);
