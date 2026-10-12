@@ -12,7 +12,7 @@
   .gh { position: absolute; left: 200px; top: 580px; font-family: var(--mono); font-size: 80px; line-height: 1; white-space: nowrap; width: max-content; }
   .ref { position: absolute; left: 1500px; top: 616px; font-family: var(--mono); font-size: 40px; line-height: 48px; white-space: nowrap; width: max-content; }
   #jq { font-size: 34px; line-height: 50px; }
-  #winO { left: 1150px; top: 32px; }
+  #winO { left: 1090px; top: 32px; }
   #winV { left: 160px; top: 236px; }
   .rep { position: absolute; left: 200px; top: 590px; width: 1620px; font-family: var(--mono); font-size: 25px; line-height: 38px; color: var(--term-fg); }
   .rep .line { white-space: pre-wrap; padding-left: 4ch; text-indent: -4ch; }
@@ -55,8 +55,8 @@
       <div class="lrow ask" id="a1" style="top:576px"><span class="px">1.0002</span><span class="bp">+2.0</span><span class="bar" style="width:70px"></span><span class="sz">768</span></div>
       <div id="refP" class="ref ink" data-layout-allow-overlap data-layout-allow-occlusion>1.0000 ref</div>
       <div id="winO" class="win">
-        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#overview</span></div>
-        <div class="app" id="appO" data-src="assets/ui/ov.png" data-s="1.35" data-x0="738" data-w="502" data-h="410"></div>
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#start</span></div>
+        <div class="app" id="appO" data-src="assets/ui/r-start.png" data-pw="1440" data-tbh="61" data-s="1.2" data-x0="650" data-w="660" data-h="436"></div>
       </div>
     </section>
 
@@ -97,10 +97,10 @@
       <div id="vhead" class="abs serif pfg split" style="left:200px;top:96px;font-size:84px;width:1640px"><span class="row">Anyone can recompute <i>every payout.</i></span></div>
       <div id="winV" class="win">
         <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#verify</span></div>
-        <div class="app" id="appV" data-src="assets/ui/verify-forged-fresh.png,assets/ui/verify-forged-running.png,assets/ui/verify-mismatch.png" data-s="0.95" data-h="560"></div>
+        <div class="app" id="appV" data-src="assets/ui/r-verify-forged-fresh.png,assets/ui/r-verify-forged-running.png,assets/ui/r-verify-forged.png" data-pw="1440" data-tbh="61" data-s="0.95" data-x0="110" data-w="1220" data-h="640"></div>
       </div>
-      <svg id="ptr" class="pointer hid" viewBox="0 0 44 56" style="left:1192px;top:576px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
-      <div id="rip" class="ripple hid" style="left:1150px;top:534px"></div>
+      <svg id="ptr" class="pointer hid" viewBox="0 0 44 56" style="left:1161px;top:686px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
+      <div id="rip" class="ripple hid" style="left:1119px;top:644px"></div>
       <div id="vnote" class="abs hid" style="left:1462px;top:300px;width:420px">
         <div class="lab akh" style="font-size:20px">Forged copy</div>
         <div class="serif pfg" style="font-size:42px;line-height:1.12;margin-top:12px">One extra token.<span style="display:block">A well-formed root.</span></div>
@@ -196,7 +196,7 @@
   tl.to(".ref", { autoAlpha: 0, duration: 0.15 }, 6.8);
   paperIn("#mhead", 7.0, 0.05);
   tl.fromTo("#winO", { y: 620 }, { y: 0, duration: 0.6, ease: "power3.out" }, 7.0);
-  tl.set("#appO .pg", { y: -459 * 1.35 }, 0);
+  tl.set("#appO .pg", { y: -64 * 1.2 }, 0);
   tl.to("#bandn", { autoAlpha: 0, duration: 0.2 }, 9.5);
 
   // ---------- 10–16 s SECRET SAUCE: anyone recomputes; the forged payout is caught; mainnet replay ----------
@@ -212,7 +212,7 @@
   tl.fromTo("#rip", { autoAlpha: 1, scale: 0.3 }, { scale: 1.3, autoAlpha: 0, duration: 0.4, ease: "power2.out", immediateRender: false }, 11.05);
   show("#appV .L1", 11.2); show("#appV .L2", 11.36);
   hide("#ptr", 11.3);
-  scroll("#appV", 140, 0.95, 11.3, 0.45);
+  scroll("#appV", 260, 0.95, 11.3, 0.45);
   tl.fromTo("#winV", { scale: 1, transformOrigin: "926px 446px" }, { scale: 1.16, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 11.75);
   show("#vnote", 10.45);
   tl.fromTo("#vnote > div:nth-child(-n+2)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.15 }, 10.45);

@@ -1,53 +1,57 @@
-// Captures REAL screens of the running Spreadbounty app. No interventions: clicks only, as a user would.
-// Usage: node video/capture/capture.mjs demo   (app on :8787, npm start / AI_PROVIDER=off, synthetic data)
-//        node video/capture/capture.mjs live   (app on :18787, DATA_SOURCE=live AI_PROVIDER=off, read-only mainnet)
+// Captures REAL screens of the running (redesigned) Spreadbounty app into video/shared/ui/r-*.png. Clicks only, as a user would.
+// Usage (from spreadbounty/):  npm run demo:gen && AI_PROVIDER=off PORT=18951 npm run serve                                  (demo, synthetic)
+//                              DATA_SOURCE=live DATA_DIR=data/shadow AI_PROVIDER=off PORT=18952 npm run serve             (shadow: real mainnet logs, nothing paid)
+//        node video/capture/capture.mjs demo|shadow [W H]     default 1440x900 at 2x into shared/ui/; other sizes at 1x into shared/ui/<H>/
+//        Full-page PNGs (the sticky top bar sits at the image top, which hf.js pins). Only shots the videos use; sync.sh copies shared/ui/*.png.
 import { createRequire } from "node:module";
 const puppeteer = createRequire(import.meta.url)("/Users/parthsingh/.local/lib/node_modules/hyperframes/node_modules/puppeteer-core");
 const mode = process.argv[2] ?? "demo";
-const base = mode === "live" ? "http://localhost:18787" : "http://localhost:8787";
-const out = new URL("./shots/", import.meta.url).pathname + mode + "-";
+const W = +(process.argv[3] ?? 1440), H = +(process.argv[4] ?? 900), dpr = W === 1440 ? 2 : 1;
+const base = mode === "shadow" ? "http://localhost:18952" : "http://localhost:18951";
+const dir = new URL(W === 1440 ? "../shared/ui/" : `../shared/ui/${H}/`, import.meta.url).pathname;
+(await import("node:fs")).mkdirSync(dir, { recursive: true });
+const out = dir + "r-" + (mode === "shadow" ? "shadow-" : "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const browser = await puppeteer.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true, args: ["--no-first-run", "--hide-scrollbars"] });
+const browser = await puppeteer.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true, protocolTimeout: 900000, args: ["--no-first-run", "--hide-scrollbars"] });
 const page = await browser.newPage();
-await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 });
+await page.setViewport({ width: W, height: H, deviceScaleFactor: dpr });
 await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
-const shot = async (name, full = true) => { await page.screenshot({ path: out + name + ".png", fullPage: full }); console.log("shot", name); };
+const shot = async (name, full = true) => { await page.screenshot({ path: out + name + ".png", fullPage: full }); console.log("shot", out + name); };
 const clickText = async (sel, text) => {
-  const ok = await page.evaluate((sel, text) => { const b = [...document.querySelectorAll(sel)].find((e) => e.textContent.trim().startsWith(text)); if (b) b.click(); return !!b; }, sel, text);
+  const ok = await page.evaluate((sel, text) => { const b = [...document.querySelectorAll(sel)].find((e) => e.textContent.trim().toLowerCase().startsWith(text.toLowerCase())); if (b) b.click(); return !!b; }, sel, text);
   if (!ok) throw new Error(`no ${sel} "${text}"`);
 };
-const waitText = (text, timeout = 30000) => page.waitForFunction((t) => document.body.innerText.includes(t), { timeout }, text);
-const go = async (hash) => { await page.goto(`${base}/#${hash}`, { waitUntil: "networkidle0" }); await sleep(2500); };
+const until = (fn, timeout = 120000) => page.waitForFunction(fn, { timeout, polling: 200 });
+const idle = () => until(() => !document.querySelector(".btn.recompute .spinner"));
+const settle = mode === "shadow" ? 8000 : 2500; // the shadow book needs ~6 s on first load
+const go = async (hash) => { await page.goto(`${base}/#${hash}`, { waitUntil: "networkidle0", timeout: 60000 }); await sleep(settle); };
+const forge = () => page.click("label.switch input");
 
-if (mode === "demo") {
+if (mode === "shadow") {
+  // Overview of the shadow campaign (real mainnet logs, nothing paid), and the copilot reading live mainnet logs (read-only)
   await go("overview"); await shot("overview");
-  await go("design"); await shot("design-0-input", false);
-  await clickText("button", "Design campaign");
-  for (let i = 1; i <= 6; i++) { await sleep(180); await shot(`design-1-steps-${i}`, false); }
-  await waitText("Publish campaign"); await sleep(1500); await shot("design-2-result");
-  await go("makers"); await waitText("Backtest"); await sleep(3000); await shot("makers");
-  await go("verify"); await shot("verify-0", false);
-  await clickText("button", "Recompute in this browser");
-  for (let i = 1; i <= 4; i++) { await sleep(120); await shot(`verify-1-run-${i}`, false); }
-  await waitText("Verified"); await sleep(1200); await shot("verify-2-ok", false);
-  await page.click("label.switch input"); await sleep(600); await shot("verify-3-forged-on", false);
-  await clickText("button", "Recompute in this browser");
-  await waitText("Mismatch: do not pay"); await sleep(1200); await shot("verify-4-mismatch", false);
-  // a clean forged run: fresh page, toggle on, recompute (no earlier "Verified" result on screen)
-  await go("overview"); await go("verify"); await page.click("label.switch input"); await sleep(600); await shot("verify-5-forged-fresh", false);
-  await clickText("button", "Recompute in this browser");
-  await sleep(120); await shot("verify-6-forged-running", false);
-  await waitText("Mismatch: do not pay"); await sleep(1200); await shot("verify-7-mismatch-fresh", false);
-  await go("claim"); await shot("claim-0", false);
-  await clickText(".examples button", "Maker A1"); await sleep(1500); await shot("claim-a1");
-  await clickText(".examples button", "Maker B2"); await sleep(1500); await shot("claim-b2");
+  await go("design"); await clickText(".examples button", "Deepen MON/USDC"); await clickText("button", "Design campaign");
+  await until(() => document.querySelector(".publish, .note.bad"), 600000); await sleep(2000); await shot("design-result");
 } else {
-  await go("overview"); await shot("overview", false);
-  await go("design");
-  await clickText(".examples button", "Deepen MON/USDC"); await sleep(400); await shot("design-0-input", false);
-  await clickText("button", "Design campaign");
-  for (let i = 1; i <= 4; i++) { await sleep(1500); await shot(`design-1-steps-${i}`, false); }
-  await page.waitForFunction(() => document.body.innerText.includes("Publish campaign") || document.querySelector(".note.bad"), { timeout: 600000 });
-  await sleep(1500); await shot("design-2-result");
+  // Start: press Recompute, let the tape finish
+  await go("start"); await clickText("button.recompute", "Recompute");
+  await idle(); await until(() => document.querySelector("p.verdict.ok, p.verdict.bad")); await sleep(2500); await shot("start");
+  // Verify: honest run, then forged on top of it, then a fresh forged run (EXCEPTION)
+  await go("verify"); await shot("verify-0");
+  await clickText("button.recompute", "Recompute"); await sleep(300); await shot("verify-running");
+  await idle(); await until(() => document.querySelector(".v-verdict p.ok, .v-verdict p.bad-ink")); await sleep(2500); await shot("verify-ok");
+  await forge(); await sleep(600); await shot("verify-forged-on");
+  await clickText("button.recompute", "Recompute"); await idle(); await until(() => document.querySelector(".v-verdict p.bad-ink")); await sleep(2500); await shot("verify-mismatch-2");
+  await go("overview"); await go("verify"); await forge(); await sleep(600); await shot("verify-forged-fresh");
+  await clickText("button.recompute", "Recompute"); await sleep(300); await shot("verify-forged-running");
+  await idle(); await until(() => document.querySelector(".v-verdict p.bad-ink")); await sleep(2500); await shot("verify-forged");
+  // Make markets: backtest, then the rest clock (the sample block lands at a moment nobody can predict)
+  await go("makers"); await until(() => document.body.innerText.includes("Spreadbounty bot")); await sleep(1500); await shot("makers");
+  await go("makers/rest"); await clickText("button", "Place quote"); await sleep(7800); await shot("makers-rest");
+  await go("claim"); await shot("claim");
+  // Design: rules only (AI_PROVIDER=off)
+  await go("design"); await shot("design-input");
+  await clickText("button", "Design campaign"); await sleep(400); await shot("design-running");
+  await until(() => document.querySelector(".publish, .note.bad"), 600000); await sleep(2000); await shot("design-result");
 }
 await browser.close();
