@@ -86,3 +86,7 @@ Independent review: two Opus 5.5 judge agents scored the build against a written
 | [docs/PROFILE.md](spreadbounty/docs/PROFILE.md) · [docs/LAUNCH.md](spreadbounty/docs/LAUNCH.md) | Project profile copy; launch kit |
 
 Everything was built inside the hackathon window; the commit history starts Oct 9, 2026.
+
+## Build notes
+
+Built Oct 9–13, 2026 for the Metropolis hackathon with AI coding assistance (agent workflows supervised by Parth Singh); all code reviewed and tested before push. License: MIT — see [LICENSE](LICENSE).

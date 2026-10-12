@@ -95,4 +95,4 @@ A 3–5% take on campaign budgets, the same order of magnitude as incentive plat
 
 ## Team
 
-Parth Singh, Amandeep Kaushik, Aashna Tyagi and Bence Szilagyi. Contact: github.com/Ps23102004.
+Parth Singh (solo). Contact: github.com/Ps23102004.
