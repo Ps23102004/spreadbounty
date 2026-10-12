@@ -19,10 +19,14 @@ export function forge(f: EpochFile): { file: EpochFile; who: string } {
   return { file: { ...f, amounts, cumulative, root }, who: top.account };
 }
 
-/** Keys where an epoch file's embedded campaign differs from the campaign this server publishes. */
+/** Every field the scorer reads from a campaign: a file that drops one must not pass as "same terms". */
+const CAMPAIGN_KEYS = ["id", "chainId", "market", "pair", "implementation", "pricePrecision", "sizePrecision", "refPrice", "bandBps", "minRestBlocks", "sampleEvery", "replayFromBlock", "epochBlocks", "budgetPerEpoch", "rewardToken", "rewardDecimals", "sponsor"];
+
+/** Keys where an epoch file's embedded campaign differs from the campaign this server publishes (checked over the union of keys). */
 export function termsDiff(embedded: object, published: object): string[] {
+  const e = embedded as Record<string, unknown>;
   const p = published as Record<string, unknown>;
-  return Object.entries(embedded).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(p[k])).map(([k]) => k);
+  return [...new Set([...Object.keys(e), ...CAMPAIGN_KEYS])].filter((k) => JSON.stringify(e[k]) !== JSON.stringify(p[k]));
 }
 
 export interface EpochCheck { epoch: number; ok: boolean; samples: number; makersPaid: number; paid: bigint; diffs: string[]; ms: number }
