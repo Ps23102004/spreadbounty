@@ -211,7 +211,7 @@ export const CampaignIn = z.strictObject({
   implementation: Address,
   pricePrecision: digits(10n ** 30n, 1n),
   sizePrecision: digits(10n ** 30n, 1n),
-  refPrice: digits(10n ** 40n).nullable(),
+  refPrice: digits(10n ** 40n, 1n).nullable(), // 0 would divide by zero in scoring
   bandBps: int(1, 500),
   minRestBlocks: int(1, 10_000),
   sampleEvery: int(50, 10_000),
@@ -221,7 +221,9 @@ export const CampaignIn = z.strictObject({
   rewardToken: Address.refine((a) => a.toLowerCase() === USDC.toLowerCase(), "Rewards are paid in USDC."),
   rewardDecimals: z.literal(6),
   sponsor: Address.optional(),
-}).refine((c) => c.id.startsWith(`${slug(c.pair)}-`), { message: "Campaign id must start with its pair.", path: ["id"] });
+})
+  .refine((c) => c.id.startsWith(`${slug(c.pair)}-`), { message: "Campaign id must start with its pair.", path: ["id"] })
+  .refine((c) => c.sampleEvery <= c.epochBlocks, { message: "An epoch must hold at least one sample window.", path: ["sampleEvery"] });
 
 export const PublishIn = z.strictObject({ campaign: CampaignIn, rationale: z.string().max(4000).optional() });
 

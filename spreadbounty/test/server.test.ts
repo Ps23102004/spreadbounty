@@ -55,10 +55,11 @@ const jsonReq = (body: unknown, ip: string, extra: Record<string, string> = {}):
 const json = jsonReq;
 const from = (ip: string): RequestInit => ({ headers: { "x-forwarded-for": ip } });
 const campaignFiles = () => readdirSync(dir).filter((f) => f.startsWith("campaign-")).sort();
-/** A publishable campaign body for the demo AUSD/USDC book (the demo campaign minus its rationale). */
+const DEMO_HEAD = await base.head();
+/** A publishable campaign body for the demo AUSD/USDC book: the demo campaign's rules, starting 300 blocks from now. */
 const demoCampaign = (): Record<string, unknown> => {
   const { rationale: _r, ...c } = JSON.parse(readFileSync(`${dir}/campaign-ausd-usdc-demo.json`, "utf8"));
-  return c;
+  return { ...c, replayFromBlock: DEMO_HEAD + 300 };
 };
 
 /** Full SIWE round trip with a local wallet; returns the `sb_sess=...` cookie pair. */
@@ -224,6 +225,10 @@ ok("rate limits: 7th copilot call in a minute -> 429 + Retry-After; third concur
     { ...demoCampaign(), id: "ausd-usdc-5", bandBps: 0 },
     { ...demoCampaign(), id: "ausd-usdc-6", budgetPerEpoch: "1e30" },
     { ...demoCampaign(), id: "ausd-usdc-7", rewardToken: "0x0000000000000000000000000000000000000001" },
+    { ...demoCampaign(), id: "ausd-usdc-8", refPrice: "0" }, // would divide by zero when the epoch is built
+    { ...demoCampaign(), id: "ausd-usdc-9", sampleEvery: 10_000, epochBlocks: 600 }, // no sample window fits
+    { ...demoCampaign(), id: "ausd-usdc-10", replayFromBlock: 1e12 }, // far future: would sort first and redraw the book
+    { ...demoCampaign(), id: "ausd-usdc-11", replayFromBlock: 0 },
   ]) {
     const rb = await fetch(url + "/api/campaigns", authed({ campaign: bad }, "10.6.0.1"));
     assert.equal(rb.status, 400, JSON.stringify(bad).slice(0, 80));
@@ -241,7 +246,7 @@ ok("rate limits: 7th copilot call in a minute -> 429 + Retry-After; third concur
   rmSync(`${dir}/campaign-junk.json`);
   rmSync(`${dir}/campaign-broken.json`);
 }
-ok("publish: no session -> 401; missing market, shadow key, wrong book, wrong pair id, traversal id, bad numbers, non-USDC reward -> 400, nothing written; junk files cannot break /api/book");
+ok("publish: no session -> 401; missing market, shadow key, wrong book, wrong pair id, traversal id, bad numbers, zero ref price, sample > epoch, start far from now, non-USDC reward -> 400, nothing written; junk files cannot break /api/book");
 
 // ---------- 7. static traversal and malformed request targets ----------
 {
@@ -379,7 +384,7 @@ ok("SIWE: Secure cookie and https URI behind a trusted proxy only; X-Forwarded-F
   const cookie = await signIn(url, sponsor, "10.10.0.1");
   const ids: string[] = [];
   for (let i = 1; i <= 3; i++) {
-    const r = await fetch(url + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: `ausd-usdc-${100 + i}`, sponsor: "0xDE00000000000000000000000000000000005150" }, rationale: "test" }, "10.10.0.1", { cookie }));
+    const r = await fetch(url + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: `ausd-usdc-${100 + i}`, bandBps: 40, refPrice: "10100000", sponsor: "0xDE00000000000000000000000000000000005150" }, rationale: "test" }, "10.10.0.1", { cookie }));
     assert.equal(r.status, 201);
     const body = await r.json();
     assert.deepEqual(body, { id: `ausd-usdc-${100 + i}`, path: `campaign-ausd-usdc-${100 + i}.json` });
@@ -391,6 +396,9 @@ ok("SIWE: Secure cookie and https URI behind a trusted proxy only; X-Forwarded-F
   assert.equal(fourth.status, 429, "fourth publish in a day");
   assert.ok(Number(fourth.headers.get("retry-after")) > 0);
   await fourth.text();
+
+  const book = await (await fetch(url + "/api/book?pair=AUSD/USDC&hours=2.5", from("10.10.0.1"))).json();
+  assert.deepEqual([book.bandBps, book.refPrice], [15, 1], "a new publish cannot redraw the public book over the running campaign");
 
   // maker role: put this wallet into the payouts of demo epochs 1 and 2 (temp copy only)
   for (const [n, amt] of [[1, "1500000"], [2, "2500000"]] as const) {
@@ -415,7 +423,21 @@ ok("SIWE: Secure cookie and https URI behind a trusted proxy only; X-Forwarded-F
   assert.match((await capped.json()).error, /50 campaigns/);
   rmSync(full, { recursive: true, force: true });
 }
-ok("publish: signed-in sponsor -> 201, stored sponsor = session address; 4th in a day -> 429; 50 total on PUBLIC_DEMO -> 429; /api/me roles from public files (sponsorOf, makerIn with epochs and cumulative)");
+{
+  // sign-in is free: one IP with many wallets still gets 5 publishes a day
+  const ip = "10.10.2.1";
+  const codes: number[] = [];
+  for (let w = 0; w < 2; w++) {
+    const cookie = await signIn(url, ethers.Wallet.createRandom(), ip);
+    for (let i = 0; i < 3; i++) {
+      const r = await fetch(url + "/api/campaigns", jsonReq({ campaign: { ...demoCampaign(), id: `ausd-usdc-2${w}${i}` } }, ip, { cookie }));
+      codes.push(r.status);
+      await r.text();
+    }
+  }
+  assert.deepEqual(codes, [201, 201, 201, 201, 201, 429]);
+}
+ok("publish: signed-in sponsor -> 201, stored sponsor = session address, book keeps the running campaign's band; 4th per address and 6th per IP in a day -> 429; 50 total on PUBLIC_DEMO -> 429; /api/me roles from public files");
 
 {
   // what the Design page does: copilot result -> publish, as a signed-in sponsor
@@ -443,7 +465,7 @@ ok("publish: campaigns the copilot designs (AUSD and MON) pass the strict schema
   // bot-sim and reports share two server-wide slots: a third concurrent backtest gets 429, not a third replay
   let release!: () => void;
   gate = new Promise((r) => (release = r));
-  const sims = [101, 102].map((size, i) => fetch(`${url}/api/campaigns/ausd-usdc-demo/bot-sim?epoch=2&size=${size}`, from(`10.11.1.${i}`)));
+  const held = [101, 102].map((size, i) => fetch(`${url}/api/campaigns/ausd-usdc-demo/bot-sim?epoch=2&size=${size}`, from(`10.11.1.${i}`)));
   await new Promise((r) => setTimeout(r, 100));
   const third = await fetch(`${url}/api/campaigns/ausd-usdc-demo/bot-sim?epoch=2&size=103`, from("10.11.1.9"));
   assert.equal(third.status, 429);
@@ -451,7 +473,15 @@ ok("publish: campaigns the copilot designs (AUSD and MON) pass the strict schema
   await third.text();
   gate = null;
   release();
-  for (const r of await Promise.all(sims)) assert.equal(r.status, 200, await r.text());
+  for (const r of await Promise.all(held)) assert.equal(r.status, 200, await r.text());
+  // "/x/" and "//x" spellings land in the same rate bucket as "/x"
+  const sims: number[] = [];
+  for (const path of Array.from({ length: 11 }, (_, i) => (i % 2 ? "/api/campaigns//ausd-usdc-demo/bot-sim" : "/api/campaigns/ausd-usdc-demo/bot-sim/"))) {
+    const r = await fetch(`${url}${path}?epoch=2&size=5`, from("10.11.3.1"));
+    sims.push(r.status);
+    await r.text();
+  }
+  assert.deepEqual(sims, [...Array(10).fill(200), 429]);
   // deep JSON, prototype keys and a nested goal are plain 400s
   for (const body of ["[".repeat(8000) + "]".repeat(8000), '{"__proto__":{"admin":true},"goal":"x"}', `{"goal":${"[".repeat(5000)}${"]".repeat(5000)}}`]) {
     const r = await fetch(url + "/api/copilot", json(body, `10.11.2.${body.length % 200}`));
@@ -461,14 +491,15 @@ ok("publish: campaigns the copilot designs (AUSD and MON) pass the strict schema
   assert.equal(({} as Record<string, unknown>).admin, undefined, "no prototype pollution");
   assert.equal((await fetch(url + "/api/config", from(ip))).status, 200, "still up");
 }
-ok("adversarial regressions: writes to read-only routes -> 405; third concurrent backtest -> 429; deep/prototype JSON -> 400, no pollution");
+ok("adversarial regressions: writes to read-only routes -> 405; third concurrent backtest -> 429; trailing/double-slash paths share the 10/min model bucket; deep/prototype JSON -> 400, no pollution");
 
 {
   const before = serverLog.length;
   await boot({ SESSION_SECRET: "" });
   assert.ok(serverLog.slice(before).some((l) => /SESSION_SECRET is not set/.test(l)), "warns when the secret is random per boot");
 }
-ok("SESSION_SECRET unset -> random per boot, with a logged warning");
+assert.throws(() => createApp({ src, env: { SESSION_SECRET: "too-short" } }), /at least 32 characters/);
+ok("SESSION_SECRET unset -> random per boot, with a logged warning; set but short -> refuses to start");
 
 await Promise.all(servers.map((s) => new Promise((r) => { s.closeAllConnections(); s.close(r); })));
 rmSync(dir, { recursive: true, force: true });

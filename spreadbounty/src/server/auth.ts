@@ -43,7 +43,8 @@ const b64 = (b: Buffer | string) => Buffer.from(b).toString("base64url");
 
 export function createAuth(secret: string | undefined, now: () => number = Date.now, warn: (m: string) => void = console.warn) {
   if (!secret) warn("SESSION_SECRET is not set: using a random secret for this run (everyone is signed out on restart).");
-  else if (secret.length < 32) warn("SESSION_SECRET is shorter than 32 characters; use 32 random bytes.");
+  // anyone can mint a valid cookie for their own wallet, so a short secret could be brute-forced offline: refuse to start
+  else if (secret.length < 32) throw new Error("SESSION_SECRET must be at least 32 characters (use `openssl rand -hex 32`).");
   const key = secret || randomBytes(32).toString("hex");
   const pending = new Map<string, { address: string; message: string; exp: number }>();
   const mac = (payload: string) => createHmac("sha256", key).update(payload).digest();

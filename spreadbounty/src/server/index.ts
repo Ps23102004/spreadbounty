@@ -9,11 +9,12 @@
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
+import { pipeline } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { decodeBookLogs, replay } from "../core/book";
 import type { RawLog } from "../core/rpc";
-import { DEFAULT_RPC } from "../core/chain";
+import { BLOCK_SECONDS, DEFAULT_RPC } from "../core/chain";
 import { epochMetrics, type Campaign, type EpochFile } from "../core/epoch";
 import { leafHash, merkleProof, verifyProof } from "../core/score";
 import { aiConfig, getLLM, type LLM } from "../ai/llm";
@@ -35,6 +36,8 @@ const BOOK_TTL_MS = 15_000;
 const CONCURRENCY = { copilot: 2, model: 2 } as const;
 const PER_SPONSOR_PER_DAY = 3;
 const PUBLIC_DEMO_MAX_CAMPAIGNS = 50;
+const PUBLISHES_PER_IP_PER_DAY = 5; // sign-in is free, so the per-address cap alone does not stop one person with many wallets
+const HOUR_BLOCKS = Math.round(3600 / BLOCK_SECONDS);
 
 const send = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
   res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store", ...headers });
@@ -91,7 +94,9 @@ function makersSeen(src: DataSource, id: string, n: number, e: EpochFile) {
 /** Resting maker orders aggregated by price level: what the order book looks like now (from logs alone). */
 async function bookSnapshot(src: DataSource, pair: string, hours: number) {
   const m = await src.market(pair);
-  const camp = listCampaigns(src).find((c) => c.market.toLowerCase() === m.market.toLowerCase());
+  // a campaign with closed epochs outranks a freshly published one, so a new publish cannot redraw the public book
+  const camps = listCampaigns(src).filter((c) => c.market.toLowerCase() === m.market.toLowerCase());
+  const camp = camps.find((c) => c.epochs > 0) ?? camps[0];
   const h = await recentHistory(src, m.market, hours);
   const { live } = replay(decodeBookLogs(h.logs));
   const P = Number(m.pricePrecision), S = Number(m.sizePrecision);
@@ -169,6 +174,7 @@ interface Ctx {
   src: DataSource;
   cfg: ServerConfig;
   auth: Auth;
+  limiter: RateLimiter;
   now: () => number;
   log: (m: string) => void;
   /** The server-side model, or null when it is off (always off on PUBLIC_DEMO unless SERVER_AI=on). */
@@ -227,11 +233,16 @@ async function publish(req: IncomingMessage, ctx: Ctx) {
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   if (!same(c.market, m.market) || !same(c.implementation, m.implementation) || c.pricePrecision !== m.pricePrecision || c.sizePrecision !== m.sizePrecision)
     throw new HttpError(400, `campaign: market details do not match the ${c.pair} book.`);
+  // starts within the last hour (the sponsor took a while to click Publish) and at most 7 days ahead
+  const head = await ctx.src.head();
+  if (c.replayFromBlock < head - HOUR_BLOCKS || c.replayFromBlock > head + 168 * HOUR_BLOCKS)
+    throw new HttpError(400, "campaign.replayFromBlock: must be between an hour ago and 7 days from now, in blocks.");
   const all = listCampaigns(ctx.src);
   const dayAgo = ctx.now() - 86_400_000;
   const todays = all.filter((x) => typeof x.sponsor === "string" && x.sponsor.toLowerCase() === addr && statSync(campaignPath(ctx.src, x.id)).mtimeMs > dayAgo);
   if (todays.length >= PER_SPONSOR_PER_DAY) throw new HttpError(429, `At most ${PER_SPONSOR_PER_DAY} campaigns per sponsor per day.`, { "Retry-After": "3600" });
   if (ctx.cfg.publicDemo && all.length >= PUBLIC_DEMO_MAX_CAMPAIGNS) throw new HttpError(429, `This demo server holds ${PUBLIC_DEMO_MAX_CAMPAIGNS} campaigns already.`, { "Retry-After": "86400" });
+  ctx.limiter.take(`publish:${clientIp(req, ctx.cfg)}`, PUBLISHES_PER_IP_PER_DAY, 86_400_000); // counts valid publishes only
   mkdirSync(ctx.src.dir, { recursive: true });
   try {
     writeFileSync(campaignPath(ctx.src, c.id), JSON.stringify({ ...c, rationale: body.rationale }, null, 2), { flag: "wx" }); // wx: never overwrite
@@ -275,7 +286,7 @@ async function campaigns(req: IncomingMessage, res: ServerResponse, url: URL, pa
       const bundle = epochPath(src, id, n).replace(".json", ".logs.json");
       if (!existsSync(bundle)) return send(res, 404, { error: "No log bundle; verify against the RPC instead." });
       res.writeHead(200, { "content-type": "application/json" });
-      return createReadStream(bundle).pipe(res);
+      return pipeline(createReadStream(bundle), res, () => {}); // pipeline closes the file if the client goes away
     }
     if (parts[5] === "claim" && parts.length === 7) {
       const acct = parse(Address, parts[6]).toLowerCase();
@@ -307,13 +318,13 @@ export function createApp(opts: AppOptions = {}) {
     src: opts.src ?? getSource(),
     cfg,
     auth: createAuth(env.SESSION_SECRET, now, log),
+    limiter: new RateLimiter(now),
     now,
     log,
     llm: () => (cfg.serverAiOff ? null : getLLM()),
     running: { copilot: 0, model: 0 },
   };
-  const { src, auth } = ctx;
-  const limiter = new RateLimiter(now);
+  const { src, auth, limiter } = ctx;
 
   // /api/book replays up to 3 h of logs (hundreds of RPC calls live): one shared fetch per pair and window every 15 s
   const bookCache = new Map<string, { at: number; value: Promise<unknown> }>();
@@ -328,8 +339,8 @@ export function createApp(opts: AppOptions = {}) {
   };
 
   async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
-    const p = url.pathname;
-    const parts = p.split("/").filter(Boolean); // ["api", ...]
+    const parts = url.pathname.split("/").filter(Boolean); // ["api", ...]
+    const p = "/" + parts.join("/"); // one spelling per route, so "/x/" or "//x" cannot reach a handler through a cheaper rate bucket
     const method = req.method ?? "GET";
     const rule = rateRule(method, p);
     limiter.take(`${rule.group}:${clientIp(req, cfg)}`, rule.max);
@@ -427,7 +438,7 @@ function staticFile(res: ServerResponse, pathname: string) {
     return res.end("Web app not built. Run `npm run build:web`, or use `npm run dev` for the dev server.");
   }
   res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
-  createReadStream(file).pipe(res);
+  pipeline(createReadStream(file), res, () => {});
 }
 
 const isMain = () => {
