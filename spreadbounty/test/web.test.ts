@@ -98,6 +98,15 @@ const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
   const r2 = await recompute(rebuilt, logs, hash, false, undefined, published);
   assert.equal(r2.ok, false, "a rewritten budget and band must not verify against the published campaign");
   assert.ok(r2.diffs.includes("campaign.budgetPerEpoch") && r2.diffs.includes("campaign.bandBps"), `fields that differ: ${r2.diffs.join(", ")}`);
+
+  // 3. a rule dropped from the files (the rebuilt files score without it): a missing field is a difference, not a match
+  const lacking = { ...files[0]!.campaign } as Record<string, unknown>;
+  delete lacking.minRestBlocks;
+  const dropped: EpochFile[] = [];
+  for (let k = 0; k < 3; k++) dropped.push(await buildEpoch(lacking as unknown as EpochFile["campaign"], k, logs, hash, dropped[k - 1] ?? null));
+  const r3 = await recompute(dropped, logs, hash, false, undefined, published);
+  assert.equal(r3.ok, false, "files that omit a campaign rule must not verify against the published campaign");
+  assert.ok(r3.diffs.includes("campaign.minRestBlocks"), `fields that differ: ${r3.diffs.join(", ")}`);
 }
 ok("recompute: a tampered payout list and rewritten campaign terms both fail; honest files with the published terms pass");
 

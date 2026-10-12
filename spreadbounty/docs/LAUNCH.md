@@ -1,9 +1,10 @@
 # Launch kit: Spreadbounty
 
-Use only these facts. Every claim below was checked on Oct 11, 2026.
+Use only these facts. The test count was checked on Oct 12, 2026; the mainnet figures come from the committed Oct 11 report.
 
 ## What is verified (say these)
-- 32 automated tests pass (`npm run test:all`).
+- 94 automated checks pass (`npm run test:all`).
+- A shadow campaign on real MON/USDC logs (back-dated, hypothetical 10 USDC budget, nobody paid) is committed under `spreadbounty/data/shadow`; see `spreadbounty/docs/SHADOW-RUN.md`.
 - Read-only checks against Monad mainnet: the Kuru MON/USDC market is verified; a replay of 6,602 real book logs matched 8 of 8 live orders against the contract's own state; two independent replays gave the same payout root. Committed report: `day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json`.
 - The AUSD/USDC book was empty at the time of the check.
 - The claim contract is 1inch's unmodified `CumulativeMerkleDrop`, vendored and sha256-checked against upstream.
@@ -27,7 +28,7 @@ Use only these facts. Every claim below was checked on Oct 11, 2026.
 >
 > The problem: protocols pay market makers for depth but can't check what they got. We rebuild the book from public logs, score two-sided depth per epoch, and publish a Merkle root anyone can recompute.
 >
-> Status, plainly: 32 tests pass. A read-only replay of 6,602 MON/USDC book logs matched 8 of 8 live orders against the contract's state. Live orders, a live epoch and the distributor on Monad are not done yet.
+> Status, plainly: 94 automated checks pass. A read-only replay of 6,602 MON/USDC book logs matched 8 of 8 live orders against the contract's state. Live orders, a live epoch and the distributor on Monad are not done yet.
 >
 > Code, write-up and the 2-minute demo: github.com/Ps23102004/spreadbounty
 
@@ -48,6 +49,6 @@ GitHub does not play repo-relative `.mp4` links inline. For an inline player, dr
 
 ## Badge
 ```markdown
-![tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)
+![checks](https://img.shields.io/badge/checks-94%20passing-brightgreen)
 ![status](https://img.shields.io/badge/mainnet-read--only%20verified-blue)
 ```
