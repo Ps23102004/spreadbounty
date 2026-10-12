@@ -7,10 +7,10 @@ import type { Order } from "../src/core/book";
 import { scoreSample } from "../src/core/score";
 import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
-import type { EpochFile } from "../src/core/epoch";
 import type { RawLog } from "../src/core/rpc";
 import { quoteWeight } from "../web/src/ui/probe";
-import { forge, recompute } from "../web/src/ui/useRecompute";
+import { buildEpoch, type EpochFile } from "../src/core/epoch";
+import { forge, recompute, termsDiff } from "../web/src/ui/useRecompute";
 
 let n = 0;
 const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
@@ -71,6 +71,35 @@ const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
   assert.equal(upTo1.ok, true, "a shorter chain (up to epoch 1) verifies too");
   ok(`recompute (shared by Start and Verify): demo epochs 0-2 verify (root ${good.recomputed.slice(0, 10)}…); forged epoch 2 fails on cumulative and root`);
 }
+
+// ---------- judge finding: files must carry the published terms and honest per-epoch payouts ----------
+{
+  const dir = "out/demo/ausd-usdc-demo";
+  const files = [0, 1, 2].map((k) => JSON.parse(readFileSync(`${dir}/epoch-${k}.json`, "utf8")) as EpochFile);
+  const logs = JSON.parse(readFileSync(`${dir}/epoch-2.logs.json`, "utf8")) as RawLog[];
+  const hash = async (b: number) => ethers.utils.id(`spreadbounty-demo-block-${b}`);
+  const published = { ...files[2]!.campaign, rationale: "x", epochs: 3 }; // what /api/campaigns lists: the campaign plus extras
+  assert.deepEqual(termsDiff(files[2]!.campaign, published), [], "extras the file does not carry are not differences");
+  const good = await recompute(files, logs, hash, false, undefined, published);
+  assert.equal(good.ok, true, `honest files carry the published terms: ${good.diffs.join(", ")}`);
+
+  // 1. a payout list that does not add up, with the real cumulative and root untouched
+  const raised = files.map((f) => ({ ...f }));
+  raised[2] = { ...raised[2]!, amounts: raised[2]!.amounts.map((a, i) => (i === 0 ? { ...a, amount: (BigInt(a.amount) + 5_000_000n).toString() } : a)) };
+  const r1 = await recompute(raised, logs, hash, false, undefined, published);
+  assert.equal(r1.ok, false, "a tampered amounts list must not verify");
+  assert.ok(r1.diffs.includes("amounts"), `fields that differ: ${r1.diffs.join(", ")}`);
+
+  // 2. campaign terms rewritten inside every epoch file, rebuilt with the production builder so each file is self-consistent
+  const rich = { ...files[0]!.campaign, budgetPerEpoch: (BigInt(files[0]!.campaign.budgetPerEpoch) * 2n).toString(), bandBps: 40 };
+  const rebuilt: EpochFile[] = [];
+  for (let k = 0; k < 3; k++) rebuilt.push(await buildEpoch(rich, k, logs, hash, rebuilt[k - 1] ?? null));
+  assert.equal((await recompute(rebuilt, logs, hash, false)).ok, true, "without the published terms a self-consistent rewrite verifies (this is why the terms are compared)");
+  const r2 = await recompute(rebuilt, logs, hash, false, undefined, published);
+  assert.equal(r2.ok, false, "a rewritten budget and band must not verify against the published campaign");
+  assert.ok(r2.diffs.includes("campaign.budgetPerEpoch") && r2.diffs.includes("campaign.bandBps"), `fields that differ: ${r2.diffs.join(", ")}`);
+}
+ok("recompute: a tampered payout list and rewritten campaign terms both fail; honest files with the published terms pass");
 
 
 // ---------- A5: the session store asks GET /api/me only when this browser may hold a session ----------

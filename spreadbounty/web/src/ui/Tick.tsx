@@ -8,7 +8,7 @@ import { EASE_ENTER, T } from "./motion";
  */
 const TEXT = { agreed: "checked against recomputation", exception: "does not match", footed: "footed total", pending: "not yet checked" } as const;
 
-export function Tick({ kind = "agreed", delay = 0, size = 16 }: { kind?: keyof typeof TEXT; delay?: number; size?: number }) {
+export function Tick({ kind = "agreed", delay = 0, size = 16, label }: { kind?: keyof typeof TEXT; delay?: number; size?: number; label?: string }) {
   const reduce = useReducedMotion();
   const draw = { initial: { pathLength: reduce ? 1 : 0 }, animate: { pathLength: 1 }, transition: { duration: T.small, delay: reduce ? 0 : delay, ease: EASE_ENTER } };
   const P = { fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -25,7 +25,7 @@ export function Tick({ kind = "agreed", delay = 0, size = 16 }: { kind?: keyof t
         {kind === "footed" && <motion.path {...P} {...draw} d="M12 3.5H4.5L8.5 8l-4 4.5H12" />}
         {kind === "pending" && <path {...P} d="M4 8h8" />}
       </svg>
-      <span className="sr-only">{TEXT[kind]}</span>
+      <span className="sr-only">{label ?? TEXT[kind]}</span>
     </span>
   );
 }

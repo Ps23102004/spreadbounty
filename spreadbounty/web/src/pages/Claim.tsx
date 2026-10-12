@@ -73,12 +73,15 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
       .catch((e) => setChainErr(`Could not read the contract via ${rpc}: ${String(e?.reason ?? e?.message ?? e).slice(0, 120)}`));
   }, [drop?.address, claim?.account, claim?.root, rpc]);
 
+  const shadow = !!(campaign as { shadow?: boolean } | null)?.shadow; // nobody was paid and no distributor exists
   const label = <SourceLabel config={config} campaign={campaign} chainId={drop?.chainId ?? null} />;
   const head = (
     <section className="page-head">
       <PageHead wp="C-4" title="Make markets · Claim"><MarketTabs on="claim" />{label}</PageHead>
-      <h1>Makers claim their running total with one proof.</h1>
-      <p>Each epoch publishes one Merkle root over every maker's total so far. The distributor pays the difference from what was already claimed, so skipping a week loses nothing.</p>
+      <h1>{shadow ? "A claim would be one proof." : "Makers claim their running total with one proof."}</h1>
+      <p>{shadow
+        ? "Each epoch would publish one Merkle root over every maker's running total. This is a shadow campaign: nobody was paid and no distributor exists, so there is nothing to claim."
+        : "Each epoch publishes one Merkle root over every maker's total so far. The distributor pays the difference from what was already claimed, so skipping a week loses nothing."}</p>
     </section>
   );
   if (!campaign) return <>{head}{status === "ready" ? <p className="ink2">No campaign yet, so nothing to claim. <a href="#design">Design one</a></p> : status === "error" ? <ErrorNote>Can't read the campaigns from this server.</ErrorNote> : <Skeleton rows={6} h={41} />}</>;
@@ -97,7 +100,7 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
       setLook({ state: "found", claim: c, ok: verifyProof(c.proof, c.root, leafHash(c.account, BigInt(c.cumulativeAmount))) && c.root === latest.root });
     } catch (e: any) {
       const text = String(e?.message ?? e);
-      setLook(/nothing to claim/i.test(text) ? { state: "none", text: `${makerName(a.trim())} has nothing to claim in this campaign through epoch ${latest.epoch}.` } : { state: "error", text });
+      setLook(/nothing to claim/i.test(text) ? { state: "none", text: shadow ? `${makerName(a.trim())} would have earned nothing in this shadow campaign through epoch ${latest.epoch}.` : `${makerName(a.trim())} has nothing to claim in this campaign through epoch ${latest.epoch}.` } : { state: "error", text });
     }
   };
 
@@ -127,7 +130,7 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
     <>
       {head}
 
-      <Schedule id="C-4" title={<label htmlFor="addr">Maker address</label>} desc={latest ? `Running totals through epoch ${latest.epoch}.` : undefined}>
+      <Schedule id="C-4" title={<label htmlFor="addr">Maker address</label>} desc={latest ? (shadow ? `Running totals these makers would have earned through epoch ${latest.epoch}.` : `Running totals through epoch ${latest.epoch}.`) : undefined}>
         <div className="lookup">
           <input id="addr" type="text" className="mono" value={addr} onChange={(e) => setAddr(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="0x…" spellCheck={false} autoComplete="off" />
           <button className="btn" onClick={() => lookup()} disabled={look.state === "busy" || latest === undefined}>{look.state === "busy" ? "Looking up…" : "Look up"}</button>
@@ -142,7 +145,7 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
           <div className="examples" role="group" aria-label="Makers in this campaign">
             {latest.cumulative.map((c) => (
               <button key={c.account} aria-pressed={claim?.account === c.account} onClick={() => { setAddr(c.account); lookup(c.account); }}>
-                {makerName(c.account)} · {fmt.usd(Number(c.amount) / dec)} {quote}
+                {makerName(c.account)} · {fmt.usd(Number(c.amount) / dec)} {quote}{shadow ? " would earn" : ""}
               </button>
             ))}
           </div>
@@ -156,12 +159,12 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
       {(look.state === "busy" || claim) && latest && (
         <div className="claim-grid">
           <Schedule id="C-5" title="Proof" desc="Each line hashes into the next. Your browser checks the whole path against the epoch's root." source={label}
-            footer={claim && <span>Computed by <b>this server</b> · Checked by {look.state === "found" && look.ok ? <b>your browser <Tick /></b> : <b className="bad-ink">your browser: does not verify <Tick kind="exception" /></b>}</span>}>
+            footer={claim && <span>Computed by <b>this server</b> · Checked by {look.state === "found" && look.ok ? <b>your browser <Tick label="proof hashes to this root" /></b> : <b className="bad-ink">your browser: does not verify <Tick kind="exception" /></b>}</span>}>
             {!claim ? <Skeleton rows={6} h={36} /> : (
               <>
                 <div className="claim-total">
                   <span className="hero-figure claim-figure">{fmt.usd(Number(claim.cumulativeAmount) / dec)}</span>
-                  <span className="muted small">{quote} for {makerName(claim.account)}, all epochs through {latest.epoch}</span>
+                  <span className="muted small">{shadow ? `${quote} ${makerName(claim.account)} would have earned, all epochs through ${latest.epoch}. Nothing was paid.` : `${quote} for ${makerName(claim.account)}, all epochs through ${latest.epoch}`}</span>
                 </div>
                 <ol className="proof">
                   <ProofLine k="leaf" v={leafHash(claim.account, BigInt(claim.cumulativeAmount))} ok={look.state === "found" && look.ok} i={0} note="keccak(account, amount)" />
@@ -173,8 +176,10 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
             )}
           </Schedule>
 
-          <Schedule id="C-6" title="Claim transaction" desc="A standard cumulative Merkle drop. This is the exact call a wallet sends." aside={claim && <Copy text={calldata} label="Copy calldata" />}>
-            {!claim ? <Skeleton rows={6} h={36} /> : (
+          <Schedule id="C-6" title="Claim transaction" desc={shadow ? "Nothing was paid and no distributor exists, so there is no call to send." : "A standard cumulative Merkle drop. This is the exact call a wallet sends."} aside={claim && !shadow && <Copy text={calldata} label="Copy calldata" />}>
+            {!claim ? <Skeleton rows={6} h={36} /> : shadow ? (
+              <p className="ink2">This shadow campaign paid nobody, so there is nothing to claim and no transaction to send. With a funded distributor, this proof would let {makerName(claim.account)} claim {fmt.usd(Number(claim.cumulativeAmount) / dec)} {quote}.</p>
+            ) : (
               <>
                 <pre className="tape-code">{`claim(\n  ${claim.account},\n  ${claim.cumulativeAmount},\n  ${claim.root},\n  [${claim.proof.map((p) => `\n    ${p}`).join(",")}\n  ]\n)`}</pre>
                 <details className="calldata">
@@ -185,7 +190,7 @@ export function Claim({ campaign, config, status }: { campaign: CampaignRow | nu
                   <dl className="kv">
                     <dt>Distributor</dt><dd className="mono">{drop.address}</dd>
                     <dt>Chain</dt><dd>{drop.chainId === 143 ? "Monad (143)" : `local test chain ${drop.chainId}`}</dd>
-                    {chain && <><dt>Root on the contract</dt><dd>{chain.root === claim.root ? <><Tick /> this epoch's root</> : <span className="bad-ink">a different epoch's root</span>}</dd></>}
+                    {chain && <><dt>Root on the contract</dt><dd>{chain.root === claim.root ? <><Tick label="matches the root on the contract" /> this epoch's root</> : <span className="bad-ink">a different epoch's root</span>}</dd></>}
                     {chain && <><dt>Already claimed</dt><dd className="num">{fmt.usd(Number(chain.claimed) / dec)} {quote}</dd></>}
                     {left !== null && <><dt>Claimable now</dt><dd className="num"><b>{fmt.usd(Math.max(0, Number(left)) / dec)}</b> {quote}</dd></>}
                   </dl>
@@ -214,7 +219,7 @@ function ProofLine({ k, v, ok, i, note, total }: { k: string; v: string; ok: boo
       <span className="pk">{k}</span>
       <span className="hash" title={v}>{v}</span>
       <span className="pn">{note}</span>
-      <span className="tickcol">{ok ? <Tick delay={Math.min(i * 0.04, 0.36)} /> : <Tick kind="pending" />}</span>
+      <span className="tickcol">{ok ? <Tick delay={Math.min(i * 0.04, 0.36)} label={total ? "matches the epoch's root" : "hashes into the next line"} /> : <Tick kind="pending" />}</span>
     </li>
   );
 }

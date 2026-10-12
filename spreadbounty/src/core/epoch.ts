@@ -193,7 +193,11 @@ export async function verifyEpoch(
   cmp("logCount", file.logCount, re.logCount);
   cmp("samples", file.samples, re.samples);
   cmp("scores", file.scores, re.scores);
+  cmp("amounts", file.amounts, re.amounts);
   cmp("cumulative", file.cumulative, re.cumulative);
+  cmp("fromBlock", file.fromBlock, re.fromBlock);
+  cmp("toBlock", file.toBlock, re.toBlock);
+  cmp("prevRoot", file.prevRoot, re.prevRoot);
   cmp("root", file.root, re.root);
   return { ok: diffs.length === 0, diffs, recomputed: re };
 }

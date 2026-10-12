@@ -86,7 +86,7 @@ function listEpochs(src: DataSource, id: string) {
 /** Every address that placed an order during the epoch, paid or not (shows who quoted but did not qualify). */
 function makersSeen(src: DataSource, id: string, n: number, e: EpochFile) {
   const bundle = epochPath(src, id, n).replace(".json", ".logs.json");
-  if (!existsSync(bundle)) return [];
+  if (!existsSync(bundle)) return null; // unknown, not zero: shadow deploys do not ship the log bundles
   const counts = new Map<string, number>();
   for (const ev of decodeBookLogs(readJson<RawLog[]>(bundle).filter((l) => l.blockNumber >= e.fromBlock && l.blockNumber <= e.toBlock)))
     if (ev.kind === "create") counts.set(ev.order.owner, (counts.get(ev.order.owner) ?? 0) + 1);
@@ -407,7 +407,8 @@ export function createApp(opts: AppOptions = {}) {
     if (p === "/api/market" && method === "GET") return send(res, 200, await src.market(parse(MarketQuery, query(url)).pair));
     if (p === "/api/book" && method === "GET") {
       const q = parse(BookQuery, query(url));
-      return send(res, 200, await cachedBook(q.pair, q.hours));
+      // live data costs RPC calls per window: one fixed window, so ?hours= cannot cycle the cache into hundreds of eth_getLogs
+      return send(res, 200, await cachedBook(q.pair, src.kind === "demo" ? q.hours : 1));
     }
     if (p === "/api/blockhash" && method === "GET") {
       // demo only: in live mode the browser asks the RPC itself so verification doesn't trust this server

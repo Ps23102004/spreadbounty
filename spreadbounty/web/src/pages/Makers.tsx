@@ -145,7 +145,7 @@ export function Makers({ campaign, status, config, sub }: { campaign: CampaignRo
         <div className="run-grid">
           <Schedule id="C-3" title="Run it" desc="The reference bot is open source and follows the same scoring rules as the payout code." aside={<Copy text={cmds} label="Copy commands" />}>
             <pre className="tape-code">{cmds}</pre>
-            <p className="note bad">Live mode trades real funds. Put a fresh throwaway wallet in <code>BOT_KEY</code> holding only what you can lose. Orders above <code>BOT_MAX_ORDER_QUOTE</code> (default 100 {quote}) are refused.</p>
+            <p className="note bad">Live mode trades real funds. Give the bot a fresh throwaway wallet holding only what you can lose (its key goes in the bot's environment, never in this page). Orders above the bot's per-order cap (default 100 {quote}) are refused.</p>
           </Schedule>
           <Schedule id="C-3a" title="How the bot quotes">
             <ol className="rules">

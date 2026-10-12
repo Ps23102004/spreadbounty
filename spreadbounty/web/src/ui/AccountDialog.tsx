@@ -176,7 +176,7 @@ export function AccountDialog({ session, config }: { session: Session; config: C
             <h3>Signed in</h3>
             {session.address ? (
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="mono acct-addr"><Tick /> {session.address}</span>
+                <span className="mono acct-addr"><Tick label="signed in" /> {session.address}</span>
                 <button className="btn ghost small" onClick={out} disabled={busy === "out"}>{busy === "out" ? "Signing out…" : "Sign out"}</button>
               </div>
             ) : (

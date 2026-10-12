@@ -151,6 +151,16 @@ ok("validation: unknown pair -> 400 'Unknown market.', bad hours/account/size ->
 }
 ok("/api/book: cached 15 s per pair and window");
 
+// ---------- live data: the window is fixed, so ?hours= cannot cycle the cache into more RPC work ----------
+{
+  const live = await boot({}, { ...src, kind: "live" as const });
+  for (const h of ["2.5", "0.5", "3"]) {
+    const b = await (await fetch(`${live}/api/book?pair=AUSD/USDC&hours=${h}`, from("10.3.0.9"))).json();
+    assert.equal(b.windowHours, 1, `live mode reads one window whatever hours=${h} says`);
+  }
+}
+ok("/api/book: live mode reads one fixed window whatever ?hours= says");
+
 // ---------- 4. bodies: size, type, origin ----------
 {
   const big = JSON.stringify({ goal: "x".repeat(17 * 1024) });

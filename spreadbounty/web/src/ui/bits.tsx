@@ -49,25 +49,6 @@ export function Provenance({ by, provider, model, attempts, where }: { by: "mode
   );
 }
 
-export function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }} style={{ minWidth: 0 }}>
-      {children}
-    </motion.div>
-  );
-}
-
-export function CountUp({ value, decimals = 0 }: { value: number; decimals?: number }) {
-  const reduce = useReducedMotion();
-  const [shown, setShown] = useState(reduce ? value : 0);
-  useEffect(() => {
-    if (reduce) return setShown(value);
-    const c = animate(0, value, { duration: 1, ease: [0.22, 1, 0.36, 1], onUpdate: setShown });
-    return () => c.stop();
-  }, [value, reduce]);
-  return <>{shown.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}</>;
-}
-
 export function Copy({ text, label = "Copy" }: { text: string; label?: string }) {
   return (
     <button

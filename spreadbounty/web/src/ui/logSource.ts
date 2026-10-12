@@ -24,7 +24,7 @@ export async function rpcLogs(
   on: { stale: () => boolean; progress: (done: number, total: number) => void; retry: (request: string, error: string) => void },
 ): Promise<RawLog[]> {
   const host = new URL(rpcUrl).host;
-  const p = new ethers.providers.StaticJsonRpcProvider(rpcUrl, CHAIN_ID);
+  const p = new ethers.providers.StaticJsonRpcProvider({ url: rpcUrl, throttleLimit: 1 }, CHAIN_ID); // ethers retries a 429 up to 12 times by default (minutes); core backs off per chunk
   const total = Math.ceil((to - from + 1) / 100);
   const get = p.getLogs.bind(p);
   let done = 0;

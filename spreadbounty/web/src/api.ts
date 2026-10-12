@@ -18,7 +18,7 @@ export interface Metrics {
 }
 export interface EpochSummary {
   n: number; fromBlock: number; toBlock: number; root: string; metrics: Metrics;
-  makersSeen: { owner: string; orders: number }[];
+  makersSeen: { owner: string; orders: number }[] | null; // null: this server has no log bundle, so orders are unknown
   samples: { block: number; bidDepth: string; askDepth: string; scored: number }[];
 }
 export type CampaignRow = Campaign & { rationale?: string; epochs: number };

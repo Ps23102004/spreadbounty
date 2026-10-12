@@ -19,6 +19,12 @@ export function forge(f: EpochFile): { file: EpochFile; who: string } {
   return { file: { ...f, amounts, cumulative, root }, who: top.account };
 }
 
+/** Keys where an epoch file's embedded campaign differs from the campaign this server publishes. */
+export function termsDiff(embedded: object, published: object): string[] {
+  const p = published as Record<string, unknown>;
+  return Object.entries(embedded).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(p[k])).map(([k]) => k);
+}
+
 export interface EpochCheck { epoch: number; ok: boolean; samples: number; makersPaid: number; paid: bigint; diffs: string[]; ms: number }
 export interface Outcome { ok: boolean; epoch: number; committed: string; recomputed: string; diffs: string[]; forgedWho: string | null; checks: EpochCheck[]; ms: number }
 
@@ -33,6 +39,7 @@ export async function recompute(
   hash: (block: number) => Promise<string>,
   forged: boolean,
   onEpoch?: (c: EpochCheck) => unknown,
+  published?: object,
 ): Promise<Outcome> {
   const fs = [...files];
   let forgedWho: string | null = null;
@@ -46,7 +53,10 @@ export async function recompute(
   let last: Awaited<ReturnType<typeof verifyEpoch>> | null = null;
   for (const f of fs) {
     const t = performance.now();
-    last = await verifyEpoch(f, logs, hash, prev);
+    const v = await verifyEpoch(f, logs, hash, prev);
+    // the file must also carry the campaign the server publishes: a rewritten budget or band is not "verified"
+    const terms = published ? termsDiff(f.campaign, published).map((k) => `campaign.${k}: epoch file != published campaign`) : [];
+    last = { ...v, ok: v.ok && terms.length === 0, diffs: [...v.diffs, ...terms] };
     const c: EpochCheck = {
       epoch: f.epoch, ok: last.ok, samples: f.samples.length, makersPaid: last.recomputed.amounts.length,
       paid: last.recomputed.amounts.reduce((s, a) => s + BigInt(a.amount), 0n), diffs: last.diffs.map((d) => d.split(":")[0]!), ms: performance.now() - t,
@@ -85,6 +95,7 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const runId = useRef(0);
+  const noBundle = useRef(false); // the server answered "no log bundle": Retry must not go back to it
   const onChain = config?.dataSource === "live" || !!(campaign as { shadow?: boolean } | null)?.shadow;
   const demo = !onChain;
   const shadow = !!(campaign as { shadow?: boolean } | null)?.shadow; // nothing was paid: say "would have earned"
@@ -103,6 +114,7 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
   const loadEpochs = useCallback(() => {
     if (!campaign) return;
     clear();
+    noBundle.current = false;
     setLogSource(null);
     setEpochs(null);
     api.epochs(campaign.id)
@@ -138,11 +150,14 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
       put(l);
     };
     let rpcFailed = false;
+    let bundleFailed = false;
     const dec = 10 ** campaign.rewardDecimals;
     const quote = campaign.pair.split("/")[1] ?? "";
     try {
       const files = await Promise.all(Array.from({ length: n + 1 }, (_, k) => api.epoch(campaign.id, k)));
       await push({ id: "files", fig: String(files.length), text: `epoch file${files.length === 1 ? "" : "s"} downloaded`, sym: "#" });
+      const k = files[n]!.campaign;
+      await push({ id: "terms", fig: fmt.usd(Number(k.budgetPerEpoch) / dec), text: `${quote} per epoch · ${k.bandBps} bps band · ${k.minRestBlocks}-block rest · terms read from this server's files`, sym: "#" });
       let logs: RawLog[];
       const host = new URL(rpcUrl).host;
       if (logSource === "rpc") {
@@ -153,7 +168,7 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
         }).catch((e) => { rpcFailed = true; throw e; });
         await push({ id: "logs", fig: fmt.n(logs.length), text: `order logs from ${host}, direct`, sym: "#" });
       } else {
-        logs = await api.logs(campaign.id, n);
+        logs = await api.logs(campaign.id, n).catch((e) => { bundleFailed = true; throw e; });
         await push({ id: "logs", fig: fmt.n(logs.length), text: "order logs", sym: "#" });
         if (onChain) await push({ id: "trust", fig: "bundle", text: BUNDLE_NOTE, sym: "#" });
       }
@@ -172,7 +187,7 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
         await push(c.ok
           ? { id: `e${c.epoch}`, fig: String(c.samples), text: `samples · ${c.makersPaid} ${shadow ? "would earn" : "paid"} · epoch ${c.epoch}`, sym: "◇" }
           : { id: `e${c.epoch}`, fig: "mismatch", text: `${c.diffs.join(", ")} · epoch ${c.epoch}`, sym: "≠", red: true });
-      });
+      }, campaign);
       const last = out.checks[out.checks.length - 1]!;
       if (out.ok) {
         await push({ id: "paid", fig: fmt.usd(Number(last.paid) / dec), text: `${quote} ${shadow ? "would have been earned" : "paid"} · epoch ${out.epoch}`, sym: "+" });
@@ -185,11 +200,20 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
       if (id === runId.current) setOutcome(out);
     } catch (e: any) {
       if (e === STOP) return;
-      if (id === runId.current && rpcFailed) {
-        // offer the server bundle: Retry now reads it, and says so on the tape
-        setLogSource("bundle");
+      if (id === runId.current && bundleFailed) {
+        // no bundle on this server (shadow deploys don't ship one): send Retry back to the chain
+        noBundle.current = true;
+        if (onChain) setLogSource("rpc");
         put({ id: "retry", fig: "failed", text: String(e?.message ?? e), sym: "≠", red: true });
-        setError(`The Monad RPC kept failing after retries with backoff: ${e?.message ?? e}. Retry recomputes from the server's bundle instead (${BUNDLE_NOTE}).`);
+        setError(`This server has no log bundle (${e?.message ?? e}).${onChain ? " Retry reads the logs from the Monad RPC." : ""}`);
+      } else if (id === runId.current && rpcFailed) {
+        put({ id: "retry", fig: "failed", text: String(e?.message ?? e), sym: "≠", red: true });
+        if (noBundle.current) setError(`The Monad RPC kept failing after retries with backoff: ${e?.message ?? e}. This server has no log bundle to fall back on.`);
+        else {
+          // offer the server bundle: Retry now reads it, and says so on the tape
+          setLogSource("bundle");
+          setError(`The Monad RPC kept failing after retries with backoff: ${e?.message ?? e}. Retry recomputes from the server's bundle instead (${BUNDLE_NOTE}).`);
+        }
       } else if (id === runId.current) setError(String(e?.message ?? e));
     }
     if (id === runId.current) setBusy(false);

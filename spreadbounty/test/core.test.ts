@@ -87,6 +87,17 @@ const entries = e1.cumulative.map((c) => [c.account, BigInt(c.amount)] as [strin
 for (const [acc, amt] of entries) assert.ok(verifyProof(merkleProof(entries, acc, amt), e1.root, leafHash(acc, amt)));
 ok("epoch 1: cumulative amounts never decrease, chain enforced, every claim proof verifies");
 
+// ---------- every committed field is checked, not only the Merkle inputs (judge finding) ----------
+{
+  const bump = (xs: { account: string; amount: string }[]) => xs.map((x, i) => (i === 0 ? { ...x, amount: (BigInt(x.amount) + 5_000_000n).toString() } : x));
+  assert.ok((await verifyEpoch(e1, logs, hash, e0)).ok, "the honest chained epoch still verifies");
+  const amountsOnly = await verifyEpoch({ ...e0, amounts: bump(e0.amounts) }, logs, hash, null);
+  assert.ok(!amountsOnly.ok && amountsOnly.diffs.some((d) => d.startsWith("amounts")), "a raised per-epoch payout, with the real cumulative and root, is caught");
+  assert.ok(!(await verifyEpoch({ ...e0, toBlock: e0.toBlock + 1 }, logs, hash, null)).ok, "a different block range is caught");
+  assert.ok(!(await verifyEpoch({ ...e1, prevRoot: null }, logs, hash, e0)).ok, "a wrong prevRoot is caught");
+}
+ok("verify: a tampered per-epoch amounts list, block range or prevRoot is detected");
+
 const m = epochMetrics(e0);
 assert.equal(m.samples, 10);
 assert.ok(m.twoSidedCoveragePct > 0 && m.twoSidedCoveragePct <= 100);

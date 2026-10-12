@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { api, type CampaignRow, type Config } from "./api";
 import { Claim } from "./pages/Claim";
 import { Design } from "./pages/Design";
@@ -81,6 +81,21 @@ export function App() {
   }, [refresh]);
   useEffect(load, [load]);
 
+  // a new page starts at its top, and its heading takes focus once it has entered (not on the first load: the skip link comes first)
+  const arrived = useRef(false);
+  const headingDue = useRef(false);
+  useEffect(() => {
+    if (!arrived.current) { arrived.current = true; return; }
+    headingDue.current = true;
+    window.scrollTo(0, 0);
+  }, [page]);
+  const focusHeading = () => {
+    if (!headingDue.current) return;
+    headingDue.current = false;
+    const h = document.querySelector<HTMLElement>("#content h1");
+    if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+  };
+
   const campaign = campaigns?.find((c) => c.id === campaignId) ?? null;
   const status = campaigns ? "ready" : error ? "error" : "loading";
   const skip = (e: MouseEvent) => {
@@ -130,19 +145,20 @@ export function App() {
             <button className="btn small" onClick={load}>Retry</button>
           </div>
         )}
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait">
           <motion.div
             key={page}
             className="route"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.32, ease: EASE_ENTER } }}
             exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_EXIT } }}
+            onAnimationComplete={focusHeading}
           >
-            {page === "start" && <Start campaign={campaign} config={config} />}
+            {page === "start" && <Start campaign={campaign} config={config} status={status} />}
             {page === "overview" && <Overview key={campaign?.id ?? "none"} campaign={campaign} campaigns={campaigns ?? []} status={status} onPick={setCampaignId} config={config} onRetry={load} />}
             {page === "design" && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
             {page === "makers" && <Makers campaign={campaign} status={status} config={config} sub={sub} />}
-            {page === "verify" && <Verify campaign={campaign} config={config} />}
+            {page === "verify" && <Verify campaign={campaign} config={config} status={status} />}
             {page === "claim" && <Claim campaign={campaign} config={config} status={status} />}
           </motion.div>
         </AnimatePresence>

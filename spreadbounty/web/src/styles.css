@@ -268,7 +268,7 @@ tr.dim td { color: var(--muted); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .examples { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.examples button { border: 1px solid var(--rule); border-top: 3px double var(--edge); background: var(--tape); border-radius: 0; padding: 6px 12px; min-height: 40px; font-size: var(--t-sm); cursor: pointer; color: var(--ink-2); text-align: left; }
+.examples button { border: 1px solid var(--rule); border-top: 3px double var(--edge); background: var(--tape); border-radius: 0; padding: 6px 12px; min-height: 44px; font-size: var(--t-sm); cursor: pointer; color: var(--ink-2); text-align: left; }
 .examples button:hover { border-color: var(--edge); color: var(--ink); }
 
 .roots { display: grid; gap: 8px; }
@@ -350,7 +350,7 @@ dialog.sheet::backdrop { background: rgb(0 0 0 / 0.35); }
   .show-sm { display: inline; }
 }
 @media (pointer: coarse) {
-  .btn.small, .tabs button, .icon-btn, .chip { min-height: 44px; }
+  .btn.small, .tabs button, .icon-btn, .chip { min-height: 44px; min-width: 44px; }
   .icon-btn { width: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {

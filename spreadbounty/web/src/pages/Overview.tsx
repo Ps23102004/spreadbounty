@@ -242,7 +242,7 @@ function Payouts({ campaign, cur, file, fileErr, onRetry, shadow, label }: {
   const dec = 10 ** file.campaign.rewardDecimals;
   const paid = new Map(file.amounts.map((a) => [a.account, Number(a.amount) / dec]));
   const cum = new Map(file.cumulative.map((a) => [a.account, Number(a.amount) / dec]));
-  const orders = new Map(cur.makersSeen.map((m) => [m.owner.toLowerCase(), m.orders]));
+  const orders = new Map((cur.makersSeen ?? []).map((m) => [m.owner.toLowerCase(), m.orders]));
   const rows: PayRow[] = [...new Set([...paid.keys(), ...cum.keys(), ...orders.keys()])]
     .map((a) => ({ a, paid: paid.get(a) ?? 0, cum: cum.get(a) ?? 0, orders: orders.get(a) ?? 0 }))
     .sort((x, y) => y.paid - x.paid || y.orders - x.orders);
@@ -257,7 +257,7 @@ function Payouts({ campaign, cur, file, fileErr, onRetry, shadow, label }: {
 
   const cols: Col<PayRow>[] = [
     { key: "maker", head: "Maker", cell: (r) => <span className="addr" title={r.a}>{makerName(r.a)}</span>, total: "Total" },
-    { key: "orders", head: "Orders", num: true, cell: (r) => fmt.n(r.orders), total: fmt.n(rows.reduce((s, r) => s + r.orders, 0)) },
+    { key: "orders", head: "Orders", num: true, cell: (r) => (cur.makersSeen ? fmt.n(r.orders) : "–"), total: cur.makersSeen ? fmt.n(rows.reduce((s, r) => s + r.orders, 0)) : "–" },
     {
       key: "share", head: "Share", cell: (r, i) => (
         <span className="track share" role="img" aria-label={`${total ? Math.round((r.paid / total) * 100) : 0}% of this epoch`}>

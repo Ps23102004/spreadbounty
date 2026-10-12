@@ -52,7 +52,7 @@ export function RestClock({ need = 20 }: { need?: number }) {
         {s.phase === "idle" && <p className="ink2">Place a quote and watch it rest. A sample block arrives at a moment you can't predict.</p>}
         {s.phase === "resting" && <p className="ink2">{full ? "Rested long enough. It counts at the next sample, as long as you leave it alone." : "Resting. Requote now and the clock starts over."}</p>}
         {s.phase === "done" && (scored
-          ? <p className="ok-ink"><Tick /> Sampled at block +{s.block}. The quote had rested {s.atSample} blocks, so it scores.</p>
+          ? <p className="ok-ink"><Tick label="this quote scores" /> Sampled at block +{s.block}. The quote had rested {s.atSample} blocks, so it scores.</p>
           : <MarginNote tone="red">Sampled at block +{s.block}. Not rested {need} blocks (only {s.atSample}): earns nothing.</MarginNote>)}
       </div>
       <p className="probe-note">Illustration of the rule at 300 ms per block. No order is placed.</p>

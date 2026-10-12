@@ -17,7 +17,7 @@ const DOORS = [
 ];
 
 /** W/P 0: the thesis, the mechanism on one schedule, the recompute in place, three doors, and what has really run. */
-export function Start({ campaign, config }: { campaign: CampaignRow | null; config: Config | null }) {
+export function Start({ campaign, config, status }: { campaign: CampaignRow | null; config: Config | null; status: "loading" | "ready" | "error" }) {
   const rc = useRecompute(campaign, config);
   const [book, setBook] = useState<Book | null>(null);
   const latest = rc.epochs?.length ? rc.epochs[rc.epochs.length - 1]! : null;
@@ -33,7 +33,7 @@ export function Start({ campaign, config }: { campaign: CampaignRow | null; conf
 
         <div className="start-actions">
           <button className="btn recompute" onClick={rc.run} disabled={!latest || rc.busy || !config}>
-            {rc.busy ? <><span className="spinner" aria-hidden /> Recomputing…</> : latest ? `Recompute epoch ${latest.n} here` : rc.epochs ? "No closed epoch to recompute yet" : "Loading epochs…"}
+            {rc.busy ? <><span className="spinner" aria-hidden /> Recomputing…</> : latest ? `Recompute epoch ${latest.n} here` : rc.epochs ? "No closed epoch to recompute yet" : status === "ready" && !campaign ? "No campaign to recompute yet" : status === "error" ? "Server unreachable" : "Loading epochs…"}
           </button>
           <label className="switch">
             <input type="checkbox" checked={rc.forged} onChange={(e) => rc.setForged(e.target.checked)} disabled={!latest} />
@@ -119,12 +119,12 @@ function Status({ config, book }: { config: Config | null; book: Book | null }) 
       <h2 id="status-h" className="label">Status, plainly</h2>
       <ul>
         {live && book && (
-          <li><Tick kind="footed" /><span>{book.pair} book now: {book.bids.length + book.asks.length ? `${book.bids.length + book.asks.length} resting price levels` : "no resting orders"} at block {fmt.n(book.head)}, read-only.</span></li>
+          <li><Tick kind="footed" label="read just now" /><span>{book.pair} book, read-only, from the last {book.windowHours} h of order logs up to block {fmt.n(book.head)}: {book.bids.length + book.asks.length ? `${book.bids.length + book.asks.length} resting price levels` : "no resting orders"}. Orders resting longer than that are not counted.</span></li>
         )}
-        <li><Tick /><span>Mainnet, read-only (Oct 11): Kuru markets verified; 6,602 MON/USDC book logs replayed, 8 of 8 live orders match contract state. The AUSD/USDC book was empty.</span></li>
-        <li><Tick kind="pending" /><span>Not run yet: no live maker or taker orders.</span></li>
-        <li><Tick kind="pending" /><span>Not run yet: no closed live epoch, so nothing has been paid.</span></li>
-        <li><Tick kind="pending" /><span>Not run yet: the distributor is not deployed on Monad.</span></li>
+        <li><Tick label="checked on Oct 11, read-only" /><span>Mainnet, read-only (Oct 11): Kuru markets verified; 6,602 MON/USDC book logs replayed, 8 of 8 live orders match contract state. The AUSD/USDC book was empty.</span></li>
+        <li><Tick kind="pending" label="not run yet" /><span>Not run yet: no live maker or taker orders.</span></li>
+        <li><Tick kind="pending" label="not run yet" /><span>Not run yet: no closed live epoch, so nothing has been paid.</span></li>
+        <li><Tick kind="pending" label="not run yet" /><span>Not run yet: the distributor is not deployed on Monad.</span></li>
       </ul>
     </section>
   );
