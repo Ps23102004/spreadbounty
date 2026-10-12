@@ -4,13 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Spreadbounty</title>
-    <meta name="description" content="Sponsor-funded maker rewards for Kuru order books on Monad, recomputable by anyone from public logs." />
+    <meta name="description" content="Sponsors pay for order-book depth on Monad. Anyone can recompute who earned it, from public Kuru order logs." />
+    <meta name="theme-color" content="#ECF0E8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111518" media="(prefers-color-scheme: dark)" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b6b63'/%3E%3Crect x='7' y='9' width='12' height='4' rx='2' fill='%23fff'/%3E%3Crect x='13' y='19' width='12' height='4' rx='2' fill='%23fff'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Fragment+Mono&display=swap" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='2' fill='%23ECF0E8'/%3E%3Crect x='3' y='11' width='26' height='11' fill='%23F2E27D'/%3E%3Crect x='6' y='9' width='12' height='4' fill='%231B201D'/%3E%3Crect x='14' y='19' width='12' height='4' fill='%231B201D'/%3E%3C/svg%3E" />
   </head>
   <body>
+    <!--
+    THESIS: Spreadbounty is an auditor's working-paper file for a depth budget: every figure carries a tickmark that says how it was checked. It refuses the dark neon trading terminal and the cream editorial fintech page.
+    OWN-WORLD: ledger-green stock with ruled columns, graphite figures, schedule references in the corner, red-pencil exceptions, blue and orange pencil for bids and asks, yellow highlighter for the reward band, an adding-machine tape with a black and red ribbon, rubber stamps, double rules under totals.
+    STORY: a visitor sees who pays for what, watches their own browser recompute a payout and tick every line, forges one and sees the red exception, then picks a door: fund depth, make markets, or check payouts.
+    FIRST VIEWPORT: left 5 columns, thesis headline, one line of support, "Recompute epoch 2 here" and a forge switch, then the tape; right 7 columns, Schedule A-1 (the order book as a ladder with the highlighted band and a quote probe); the stamp lands on that schedule; a "Status, plainly" strip closes the viewport.
+    FORM: auditor's working papers, candidate 3 of 7, seed key f452f383.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

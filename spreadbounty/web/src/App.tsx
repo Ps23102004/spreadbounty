@@ -1,25 +1,33 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
-import { api, type CampaignRow, type Config, type Health } from "./api";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { api, type CampaignRow, type Config } from "./api";
 import { Claim } from "./pages/Claim";
 import { Design } from "./pages/Design";
 import { Makers } from "./pages/Makers";
 import { Overview } from "./pages/Overview";
+import { Start } from "./pages/Start";
 import { Verify } from "./pages/Verify";
+import { RoleChip, useSession, WalletButton } from "./ui/AccountDialog";
+import { Icon, Mark, ThemeIcon } from "./ui/icons";
+import { WriterChip } from "./ui/ModelSlot";
+import { SourceLabel } from "./ui/SourceLabel";
 
-const PAGES = [
-  { id: "overview", label: "Overview" },
-  { id: "design", label: "Design a campaign" },
-  { id: "makers", label: "Make markets" },
-  { id: "verify", label: "Verify" },
-  { id: "claim", label: "Claim" },
+/** Five index tabs; Claim lives under Make markets (#claim still deep-links and lights that tab). */
+const TABS = [
+  { id: "start", label: "Start", icon: Icon.start },
+  { id: "overview", label: "Overview", icon: Icon.overview },
+  { id: "design", label: "Design", icon: Icon.design },
+  { id: "makers", label: "Make markets", icon: Icon.makers },
+  { id: "verify", label: "Verify", icon: Icon.verify },
 ] as const;
-type PageId = (typeof PAGES)[number]["id"];
+const ROUTES = ["start", "overview", "design", "makers", "claim", "verify"] as const;
+type PageId = (typeof ROUTES)[number];
 
 const pageFromHash = (): PageId => {
-  const h = location.hash.replace("#", "");
-  return (PAGES.find((p) => p.id === h)?.id ?? "overview") as PageId;
+  const h = location.hash.replace("#", "") as PageId;
+  return ROUTES.includes(h) ? h : "start";
 };
+const tabOf = (p: PageId) => (p === "claim" ? "makers" : p);
 
 type Theme = "system" | "light" | "dark";
 const loadTheme = (): Theme => {
@@ -29,6 +37,9 @@ const loadTheme = (): Theme => {
     return "system";
   }
 };
+const EASE_ENTER = [0.16, 1, 0.3, 1] as const;
+const EASE_EXIT = [0.7, 0, 0.84, 0] as const;
+const EASE_MOVE = [0.65, 0, 0.35, 1] as const;
 
 export function App() {
   const [page, setPage] = useState<PageId>(pageFromHash);
@@ -37,6 +48,7 @@ export function App() {
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const session = useSession();
 
   useEffect(() => {
     const on = () => setPage(pageFromHash());
@@ -59,54 +71,72 @@ export function App() {
     setCampaignId((cur) => cur ?? cs.find((c) => c.epochs > 0)?.id ?? cs[0]?.id ?? null);
     return cs;
   }, []);
-  useEffect(() => {
+  const load = useCallback(() => {
+    setError(null);
     api.config().then(setConfig).catch((e) => setError(String(e.message ?? e)));
     refresh().catch((e) => setError(String(e.message ?? e)));
   }, [refresh]);
+  useEffect(load, [load]);
 
   const campaign = campaigns.find((c) => c.id === campaignId) ?? null;
   const go = (id: PageId) => (location.hash = id);
+  const skip = (e: MouseEvent) => {
+    e.preventDefault(); // the hash is the router; don't navigate
+    document.getElementById("content")?.focus();
+  };
+  const nextTheme = () => setTheme(theme === "system" ? "light" : theme === "light" ? "dark" : "system");
+  const themeBtn = (
+    <button className="icon-btn" aria-label={`Theme: ${theme}. Change theme.`} title={`Theme: ${theme}`} onClick={nextTheme}>
+      <ThemeIcon theme={theme} />
+    </button>
+  );
+  const label = <SourceLabel config={config} campaign={campaign} failed={!!error} />;
 
   return (
     <>
+      <a className="skip" href="#content" onClick={skip}>Skip to content</a>
+      <div className="datastrip">{label}</div>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="brand" href="#overview"><span className="brand-mark" aria-hidden />Spreadbounty</a>
-          <nav className="nav" aria-label="Main">
-            {PAGES.map((p) => (
-              <a key={p.id} href={`#${p.id}`} aria-current={page === p.id ? "page" : undefined}>
-                {page === p.id && <motion.span layoutId="nav-pill" className="nav-pill" transition={{ type: "spring", bounce: 0.18, duration: 0.45 }} />}
-                {p.label}
-              </a>
-            ))}
+          <a className="brand" href="#start"><Mark />Spreadbounty</a>
+          <nav className="itabs" aria-label="Main">
+            {TABS.map((t) => {
+              const on = tabOf(page) === t.id;
+              return (
+                <a key={t.id} className="itab" href={`#${t.id}`} aria-current={on ? "page" : undefined}>
+                  {on && <motion.span layoutId="itab" className="itab-face" transition={{ duration: 0.24, ease: EASE_MOVE }} />}
+                  <span className="itab-label">{t.label}</span>
+                </a>
+              );
+            })}
           </nav>
-          <div className="chips">
-            {config && (
-              <span className="chip" title={config.synthetic ? "Synthetic order-book logs generated by src/demo/generate.ts. Set DATA_SOURCE=live for Monad mainnet." : `Reading Monad mainnet via ${config.rpcUrl}`}>
-                <span className={`dot ${config.synthetic ? "warn" : "on"}`} />
-                {config.synthetic ? "Demo data (synthetic)" : "Monad mainnet"}
-              </span>
-            )}
-            {config && <AiChip config={config} />}
-            <button className="theme-btn" aria-label={`Theme: ${theme}. Click to change.`} title={`Theme: ${theme}`} onClick={() => setTheme(theme === "system" ? "light" : theme === "light" ? "dark" : "system")}>
-              <ThemeIcon theme={theme} />
-            </button>
+          <div className="tools">
+            {label}
+            <WriterChip config={config} />
+            <RoleChip session={session} />
+            <WalletButton session={session} />
+            <span className="theme-top">{themeBtn}</span>
           </div>
         </div>
       </header>
-      <main>
-        {error && <div className="note bad">Could not reach the Spreadbounty server: {error}. Start it with <code>npm run serve</code>.</div>}
-        {campaigns.length > 1 && page !== "design" && (
-          <div className="row" style={{ justifyContent: "flex-end", marginBottom: -12 }}>
-            <label className="label" htmlFor="campaign">Campaign</label>
-            <select id="campaign" style={{ width: "auto", minWidth: 0, maxWidth: "100%" }} value={campaignId ?? ""} onChange={(e) => setCampaignId(e.target.value)}>
-              {campaigns.map((c) => <option key={c.id} value={c.id}>{c.pair} · {c.id} ({c.epochs} epoch{c.epochs === 1 ? "" : "s"})</option>)}
-            </select>
+
+      <main id="content" tabIndex={-1}>
+        {error && (
+          <div className="note bad row" role="alert" style={{ justifyContent: "space-between" }}>
+            <span>Can't reach the Spreadbounty server ({error}). Start it with <code>npm start</code>, then retry.</span>
+            <button className="btn small" onClick={load}>Retry</button>
           </div>
         )}
-        <AnimatePresence mode="wait">
-          <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.22 }} style={{ display: "grid", gap: 28, minWidth: 0 }}>
-            {page === "overview" && <Overview campaign={campaign} config={config} onDesign={() => go("design")} />}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={page}
+            className="route"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.32, ease: EASE_ENTER } }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_EXIT } }}
+          >
+            {page === "start" && <Start campaign={campaign} config={config} />}
+            {page === "overview" && <Overview campaign={campaign} campaigns={campaigns} onPick={setCampaignId} config={config} onDesign={() => go("design")} />}
             {page === "design" && config && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
             {page === "makers" && <Makers campaign={campaign} />}
             {page === "verify" && <Verify campaign={campaign} config={config} />}
@@ -114,78 +144,26 @@ export function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <footer>
-        Rewards are computed from public Kuru order-book logs by open code; anyone can recompute every payout. No AI model touches the money path: models only read requests and explain verified numbers.
+
+      <footer className="site-foot">
+        <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap", alignItems: "flex-start" }}>
+          <p>Payouts come from public Kuru order logs and open code. Models read requests and explain verified numbers; they never score or pay.</p>
+          <span className="theme-foot">{themeBtn}</span>
+        </div>
       </footer>
+
+      <nav className="bottombar" aria-label="Main, bottom bar">
+        {TABS.map((t) => {
+          const on = tabOf(page) === t.id;
+          return (
+            <a key={t.id} href={`#${t.id}`} aria-current={on ? "page" : undefined}>
+              {on && <motion.span layoutId="bar-mark" className="bar-mark" transition={{ duration: 0.24, ease: EASE_MOVE }} />}
+              <t.icon />
+              <span>{t.label}</span>
+            </a>
+          );
+        })}
+      </nav>
     </>
-  );
-}
-
-function ThemeIcon({ theme }: { theme: Theme }) {
-  if (theme === "light") return <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden><circle cx="8" cy="8" r="3.2" fill="currentColor" /><g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">{[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <line key={a} x1="8" y1="1.5" x2="8" y2="3" transform={`rotate(${a} 8 8)`} />)}</g></svg>;
-  if (theme === "dark") return <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z" fill="currentColor" /></svg>;
-  return <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" /></svg>;
-}
-
-/** The AI chip: which model is wired in, a one-click connection test, and how to switch to a local model. */
-function AiChip({ config }: { config: Config }) {
-  const [open, setOpen] = useState(false);
-  const [health, setHealth] = useState<Health | null>(null);
-  const [testing, setTesting] = useState(false);
-  const ai = config.ai;
-  const label = ai.provider === "off" ? "AI off · templates" : ai.provider === "local" ? `Local · ${ai.model}` : `Claude · ${ai.model}`;
-  const test = async () => {
-    setTesting(true);
-    setHealth(null);
-    try {
-      setHealth(await api.health());
-    } catch (e: any) {
-      setHealth({ ok: false, provider: ai.provider, reason: String(e?.message ?? e) });
-    }
-    setTesting(false);
-  };
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    addEventListener("keydown", close);
-    return () => removeEventListener("keydown", close);
-  }, [open]);
-  return (
-    <span className="rel">
-      <button className="chip" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className={`dot ${ai.provider === "off" ? "" : health?.ok === false ? "warn" : "on"}`} />
-        {label}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div className="popover" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>
-            <div className="panel-head"><h3>AI model</h3><button className="btn ghost small" onClick={() => setOpen(false)}>Close</button></div>
-            <dl className="kv">
-              <dt>Provider</dt><dd>{ai.provider === "local" ? "Local, OpenAI-compatible" : ai.provider === "claude" ? "Claude (Anthropic API)" : "None"}</dd>
-              {ai.model && <><dt>Model</dt><dd className="mono">{ai.model}</dd></>}
-              {ai.endpoint && <><dt>Endpoint</dt><dd className="mono">{ai.endpoint}</dd></>}
-            </dl>
-            <p className="ink2">The model only reads the sponsor's request and explains numbers the code computed. Every number it writes is checked against the data; if it invents one, a template is shown instead.</p>
-            {ai.provider !== "off" && (
-              <div className="row">
-                <button className="btn small" onClick={test} disabled={testing}>{testing ? "Testing…" : "Test connection"}</button>
-                {health && (health.ok ? <span className="badge good">Answered in {health.latencyMs} ms</span> : <span className="badge bad">No answer</span>)}
-              </div>
-            )}
-            {health && !health.ok && health.reason && <p className="note bad">{health.reason}</p>}
-            <div className="stack" style={{ gap: 6 }}>
-              <span className="label">Run with a local model</span>
-              <div className="code-block">{`# Ollama: gemma3:4b, qwen2.5:7b, llama3.2:3b, minicpm-v
-ollama pull gemma3:4b
-AI_PROVIDER=local LOCAL_LLM_MODEL=gemma3:4b npm run serve
-
-# LM Studio / llama.cpp / vLLM / a DGX Spark box
-LOCAL_LLM_URL=http://localhost:1234/v1 \\
-AI_PROVIDER=local LOCAL_LLM_MODEL=<model id> npm run serve`}</div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </span>
   );
 }

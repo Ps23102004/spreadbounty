@@ -1,6 +1,8 @@
-import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { motion } from "motion/react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { fmt, type Level } from "../api";
+import { EASE_ENTER, T } from "./motion";
+import { quoteWeight } from "./probe";
 
 /** "Nice" axis ticks so every label sits on a round value the scale actually reaches. */
 export function ticks(max: number, count = 4) {
@@ -44,9 +46,7 @@ export function DepthChart({ points, unit, height = 240 }: { points: DepthPoint[
     if (box.current) ro.observe(box.current);
     return () => ro.disconnect();
   }, []);
-  const H = height, L = 40, R = 8, T = 22, B = 26;
-  const reduce = useReducedMotion();
-  const clip = useId();
+  const H = height, L = 40, R = 8, T0 = 22, B = 26;
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const { x, y, yt, x0, x1 } = useMemo(() => {
@@ -54,7 +54,7 @@ export function DepthChart({ points, unit, height = 240 }: { points: DepthPoint[
     const ymax = Math.max(1, ...points.map((p) => Math.max(p.bid, p.ask)));
     const yt = ticks(ymax);
     const top = yt[yt.length - 1]!;
-    return { x0, x1, yt, x: (b: number) => L + ((b - x0) / Math.max(1, x1 - x0)) * (W - L - R), y: (v: number) => T + (1 - v / top) * (H - T - B) };
+    return { x0, x1, yt, x: (b: number) => L + ((b - x0) / Math.max(1, x1 - x0)) * (W - L - R), y: (v: number) => T0 + (1 - v / top) * (H - T0 - B) };
   }, [points, H, W]);
   const path = (k: "bid" | "ask") => points.map((p, i) => `${i ? "L" : "M"}${x(p.block).toFixed(1)},${y(p[k]).toFixed(1)}`).join("");
   const dividers = points.filter((p, i) => i > 0 && p.epoch !== points[i - 1]!.epoch);
@@ -69,29 +69,28 @@ export function DepthChart({ points, unit, height = 240 }: { points: DepthPoint[
     setHover(best);
   };
   const hp = hover === null ? null : points[hover]!;
+  // lines draw once on load (stroke, not width), then stay put
+  const draw = { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { duration: T.scene, ease: EASE_ENTER } };
 
   return (
     <div className="chart" ref={box}>
       <svg ref={ref} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`In-band depth per sample, bids and asks, in ${unit}`}
         onPointerMove={onMove} onPointerLeave={() => setHover(null)} style={{ touchAction: "pan-y" }}>
-        <defs><clipPath id={clip}><motion.rect x={0} y={0} height={H} initial={{ width: reduce ? W : 0 }} animate={{ width: W }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} /></clipPath></defs>
         <g className="grid">{yt.map((v) => <line key={v} x1={L} x2={W - R} y1={y(v)} y2={y(v)} />)}</g>
         <g className="axis">
           {yt.map((v) => <text key={v} x={L - 8} y={y(v) + 4} textAnchor="end">{fmt.compact(v)}</text>)}
-          {epochs.map((e) => <text key={e} x={x(firstOf(e).block) + 4} y={T - 8}>Epoch {e}</text>)}
+          {epochs.map((e) => <text key={e} x={x(firstOf(e).block) + 4} y={T0 - 8}>Epoch {e}</text>)}
           <text x={L} y={H - 6}>{fmt.n(x0)}</text>
           <text x={W - R} y={H - 6} textAnchor="end">block {fmt.n(x1)}</text>
         </g>
-        {dividers.map((p) => <line key={p.block} x1={x(p.block) - 2} x2={x(p.block) - 2} y1={T - 18} y2={H - B} stroke="var(--hairline)" strokeDasharray="3 3" />)}
-        <g clipPath={`url(#${clip})`}>
-          <path d={path("bid")} fill="none" stroke="var(--bid)" strokeWidth={2} strokeLinejoin="round" />
-          <path d={path("ask")} fill="none" stroke="var(--ask)" strokeWidth={2} strokeLinejoin="round" />
-        </g>
+        {dividers.map((p) => <line key={p.block} x1={x(p.block) - 2} x2={x(p.block) - 2} y1={T0 - 18} y2={H - B} stroke="var(--edge)" strokeDasharray="3 3" />)}
+        <motion.path key={`b${points.length}`} {...draw} d={path("bid")} fill="none" stroke="var(--bid)" strokeWidth={2} strokeLinejoin="round" />
+        <motion.path key={`a${points.length}`} {...draw} d={path("ask")} fill="none" stroke="var(--ask)" strokeWidth={2} strokeLinejoin="round" />
         {hp && (
           <g>
-            <line x1={x(hp.block)} x2={x(hp.block)} y1={T} y2={H - B} stroke="var(--muted)" strokeWidth={1} />
-            <circle cx={x(hp.block)} cy={y(hp.bid)} r={4} fill="var(--bid)" stroke="var(--surface)" strokeWidth={2} />
-            <circle cx={x(hp.block)} cy={y(hp.ask)} r={4} fill="var(--ask)" stroke="var(--surface)" strokeWidth={2} />
+            <line x1={x(hp.block)} x2={x(hp.block)} y1={T0} y2={H - B} stroke="var(--muted)" strokeWidth={1} />
+            <circle cx={x(hp.block)} cy={y(hp.bid)} r={4} fill="var(--bid)" stroke="var(--sheet)" strokeWidth={2} />
+            <circle cx={x(hp.block)} cy={y(hp.ask)} r={4} fill="var(--ask)" stroke="var(--sheet)" strokeWidth={2} />
           </g>
         )}
       </svg>
@@ -106,72 +105,133 @@ export function DepthChart({ points, unit, height = 240 }: { points: DepthPoint[
   );
 }
 
-// ---------------- the book as a ladder: asks above, bids below, the reward band shaded ----------------
-export function Ladder({ bids, asks, refPrice, bandBps, unit, decimals }: { bids: Level[]; asks: Level[]; refPrice: number | null; bandBps: number | null; unit: string; decimals: number }) {
-  const reduce = useReducedMotion();
-  const [hover, setHover] = useState<string | null>(null);
-  const rows = [...asks].sort((a, b) => b.price - a.price).concat([...bids].sort((a, b) => b.price - a.price));
-  const max = Math.max(1, ...rows.map((r) => r.size));
-  const mid = refPrice ?? (bids[0] && asks[0] ? (Math.max(...bids.map((b) => b.price)) + Math.min(...asks.map((a) => a.price))) / 2 : null);
-  const inBand = (p: number) => mid !== null && bandBps !== null && Math.abs(p - mid) / mid <= bandBps / 1e4;
-  const bpsFrom = (p: number) => (mid === null ? null : ((p - mid) / mid) * 1e4);
-  const midIndex = asks.length;
+// ---------------- Ladder v2: the book as a depth-of-market ladder ----------------
+/**
+ * Asks above, bids below, a double rule at the reference. Rows inside the reward band carry a highlighter
+ * swipe and a pencil bracket in the margin labelled with the band edge. Size bars grow with scaleX from the
+ * left, never width. Hover, focus or tap a row for its size, makers and score weight; the weight is asked of
+ * scoreSample (src/core/score.ts) through quoteWeight, not recomputed here.
+ */
+export function Ladder({ bids, asks, refPrice, bandBps, unit, decimals, pricePrecision, depth = 99 }: {
+  bids: Level[]; asks: Level[]; refPrice: number | null; bandBps: number | null; unit: string; decimals: number; pricePrecision: number; depth?: number;
+}) {
+  const [active, setActive] = useState<string | null>(null);
+  const askRows = [...asks].sort((a, b) => a.price - b.price).slice(0, depth).reverse();
+  const bidRows = [...bids].sort((a, b) => b.price - a.price).slice(0, depth);
+  const bestAsk = askRows[askRows.length - 1]?.price, bestBid = bidRows[0]?.price;
+  const mid = refPrice ?? (bestAsk !== undefined && bestBid !== undefined ? (bestAsk + bestBid) / 2 : null);
+  const midRaw = mid === null ? null : BigInt(Math.round(mid * pricePrecision));
+  const max = Math.max(1, ...askRows.concat(bidRows).map((r) => r.size));
+  const bpsOf = (p: number) => (mid === null ? null : ((p - mid) / mid) * 1e4);
+  const inBand = (p: number) => { const b = bpsOf(p); return b !== null && bandBps !== null && Math.abs(b) <= bandBps + 1e-9; };
+  const weight = (p: number) => (midRaw === null || bandBps === null ? null : quoteWeight(BigInt(Math.round(p * pricePrecision)), midRaw, bandBps).twoSided);
+  const firstAskIn = askRows.findIndex((r) => inBand(r.price));
+  const lastBidIn = bidRows.map((r) => inBand(r.price)).lastIndexOf(true);
+  const anyIn = firstAskIn >= 0 || lastBidIn >= 0;
+  const keyOf = (l: Level) => `${l.isBuy ? "b" : "a"}${l.price}`;
+  const all = [...askRows, ...bidRows];
+  const act = all.find((l) => keyOf(l) === active) ?? null;
+
+  const row = (l: Level, i: number, bracket: string, edge: string | null) => {
+    const k = keyOf(l);
+    const b = bpsOf(l.price);
+    const band = inBand(l.price);
+    const delay = Math.min(i * 0.03, 0.3);
+    return (
+      <tr key={k} tabIndex={0} className={`${l.isBuy ? "bid" : "ask"}${active === k ? " on" : ""}`}
+        onPointerEnter={() => setActive(k)} onPointerLeave={() => setActive(null)} onFocus={() => setActive(k)} onBlur={() => setActive(null)} onClick={() => setActive(k)}>
+        <td className={`br ${bracket}`} aria-hidden>{edge && <span className="br-label">{edge}</span>}</td>
+        <td className="px">
+          {band && <motion.span className="hl" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.3, delay: 0.45, ease: EASE_ENTER }} />}
+          <span className="pv">{l.price.toFixed(decimals)}</span>
+          <span className="sr-only">{band ? ", inside the band" : ", outside the band"}</span>
+        </td>
+        <td className="bp">{b === null ? "" : `${b > 0 ? "+" : ""}${b.toFixed(1)}`}</td>
+        <td className="sz">
+          <span className="track"><motion.span className="bar" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: l.size / max }} transition={{ duration: T.scene, delay, ease: EASE_ENTER }} /></span>
+          <span className="sv">{fmt.compact(l.size)}</span>
+        </td>
+      </tr>
+    );
+  };
+
+  const w = act ? weight(act.price) : null;
   return (
-    <div className="stack" style={{ gap: 3 }} role="table" aria-label="Resting maker orders by price level">
-      <div className="ladder-row label" role="row" style={{ display: "grid", gridTemplateColumns: "88px 56px minmax(0,1fr)", gap: 10 }}>
-        <span role="columnheader">Price</span><span role="columnheader" style={{ textAlign: "right" }}>bps</span><span role="columnheader">Size ({unit})</span>
+    <div className="ladder">
+      <table>
+        <caption className="sr-only">Resting maker orders by price level, asks above the {refPrice !== null ? "reference" : "mid"} and bids below</caption>
+        <thead><tr><th aria-hidden className="br" /><th scope="col">Price</th><th scope="col" className="r">bps</th><th scope="col">Size ({unit})</th></tr></thead>
+        <tbody>
+          {askRows.map((l, j) => row(l, j, firstAskIn >= 0 && j >= firstAskIn ? `on${j === firstAskIn ? " top" : ""}` : "", j === firstAskIn && bandBps !== null ? `+${bandBps} bps` : null))}
+          {mid !== null && (
+            <tr className="ref">
+              <td className={`br${anyIn ? " on" : ""}`} aria-hidden />
+              <td className="px"><span className="pv">{mid.toFixed(decimals)}</span></td>
+              <td className="bp">{refPrice !== null ? "REF" : "MID"}</td>
+              <td className="sz ref-note">{bandBps !== null ? `band ±${bandBps} bps` : ""}</td>
+            </tr>
+          )}
+          {bidRows.map((l, j) => row(l, askRows.length + j, lastBidIn >= 0 && j <= lastBidIn ? `on${j === lastBidIn ? " bot" : ""}` : "", j === lastBidIn && bandBps !== null ? `−${bandBps} bps` : null))}
+        </tbody>
+      </table>
+      <p className="ladder-readout" aria-live="polite">
+        {act
+          ? <><span className="mono">{act.price.toFixed(decimals)}</span> · {fmt.n(act.size, 2)} {unit} · {act.makers} maker{act.makers === 1 ? "" : "s"} · {w === null ? "no band set" : w > 0 ? `weight ${w.toFixed(2)} of the top score` : "outside the band, weight 0"}</>
+          : "Hover, tap or focus a row for its size, makers and score weight."}
+      </p>
+    </div>
+  );
+}
+
+// ---------------- the quote probe: move a hypothetical quote, read its weight from the scorer ----------------
+export function QuoteProbe({ mid, pricePrecision: P, tick, bandBps, decimals, refLabel }: {
+  mid: number; pricePrecision: number; tick: number | null; bandBps: number; decimals: number; refLabel: "REF" | "MID";
+}) {
+  const id = useId();
+  const midRaw = BigInt(Math.round(mid * P));
+  const tickRaw = BigInt(Math.max(1, Math.round(tick ?? mid * P * 1e-5))); // fallback: 0.1 bps
+  const K = Math.ceil((1.3 * mid * P * bandBps) / 1e4 / Number(tickRaw));
+  const [k, setK] = useState(() => Math.min(K, Math.round((mid * P * 6) / 1e4 / Number(tickRaw))));
+  const priceRaw = midRaw + BigInt(k) * tickRaw;
+  const price = Number(priceRaw) / P;
+  const bps = (Number(priceRaw - midRaw) / Number(midRaw)) * 1e4;
+  const w = quoteWeight(priceRaw, midRaw, bandBps);
+  const inside = Math.abs(bps) <= bandBps + 1e-9;
+  const where = bps > 0 ? "above" : bps < 0 ? "below" : "at";
+  const ref = refLabel === "REF" ? "reference" : "mid";
+  const half = 50 / 1.3;
+  const style = { "--band-lo": `${50 - half}%`, "--band-hi": `${50 + half}%` } as CSSProperties;
+  return (
+    <div className="probe">
+      <div className="probe-head">
+        <label htmlFor={id} className="label">Try a quote</label>
+        <span className="probe-val"><span className="mono">{price.toFixed(decimals)}</span> <span className="muted">{bps === 0 ? `at ${ref}` : `${Math.abs(bps).toFixed(1)} bps ${where}`}</span></span>
       </div>
-      {rows.map((l, i) => {
-        const k = `${l.isBuy}:${l.price}`;
-        const bps = bpsFrom(l.price);
-        return (
-          <div key={k}>
-            {i === midIndex && mid !== null && (
-              <div style={{ display: "grid", gridTemplateColumns: "88px 56px minmax(0,1fr)", gap: 10, alignItems: "center", margin: "4px 0" }}>
-                <span className="mono" style={{ fontWeight: 600 }}>{mid.toFixed(decimals)}</span>
-                <span className="label" style={{ textAlign: "right" }}>{refPrice !== null ? "ref" : "mid"}</span>
-                <span style={{ borderTop: "1px dashed var(--muted)" }} />
-              </div>
-            )}
-            <div role="row" onPointerEnter={() => setHover(k)} onPointerLeave={() => setHover(null)}
-              style={{ display: "grid", gridTemplateColumns: "88px 56px minmax(0,1fr)", gap: 10, alignItems: "center", padding: "3px 0", borderRadius: 6, background: inBand(l.price) ? "var(--band)" : undefined }}>
-              <span role="cell" className="mono num">{l.price.toFixed(decimals)}</span>
-              <span role="cell" className="num muted" style={{ textAlign: "right", fontSize: "0.8rem" }}>{bps === null ? "" : `${bps > 0 ? "+" : ""}${bps.toFixed(1)}`}</span>
-              <span role="cell" style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <motion.span
-                  initial={{ width: reduce ? `${(l.size / max) * 82}%` : 0 }}
-                  animate={{ width: `${(l.size / max) * 82}%` }}
-                  transition={{ duration: 0.7, delay: reduce ? 0 : i * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ height: 18, minWidth: 3, borderRadius: "0 4px 4px 0", background: l.isBuy ? "var(--bid)" : "var(--ask)", opacity: hover && hover !== k ? 0.45 : 1, transition: "opacity .15s" }}
-                />
-                <span className="num" style={{ fontSize: "0.8rem", color: "var(--ink-2)", whiteSpace: "nowrap" }}>
-                  {hover === k ? `${fmt.n(l.size, 2)} · ${l.makers} maker${l.makers > 1 ? "s" : ""}` : fmt.compact(l.size)}
-                </span>
-              </span>
-            </div>
-          </div>
-        );
-      })}
+      <input id={id} type="range" min={-K} max={K} step={1} value={k} style={style}
+        onChange={(e) => setK(Number(e.target.value))}
+        aria-valuetext={`${price.toFixed(decimals)}, ${Math.abs(bps).toFixed(1)} bps ${where} ${ref}, weight ${w.twoSided.toFixed(2)}`} />
+      <div className="probe-scale" aria-hidden><span>−{Math.round(bandBps * 1.3)} bps</span><span>−{bandBps}</span><span>{refLabel}</span><span>+{bandBps}</span><span>+{Math.round(bandBps * 1.3)} bps</span></div>
+      <div className="probe-out">
+        <span className="meter" aria-hidden><span style={{ transform: `scaleX(${w.twoSided})` }} /></span>
+        <p>{inside
+          ? <>Inside the band. Weight <b>{w.twoSided.toFixed(2)}</b> of the top score with a matching {bps > 0 ? "bid" : "ask"}, <b>{w.oneSided.toFixed(2)}</b> on its own.</>
+          : <>Outside the band: earns nothing.</>}</p>
+      </div>
+      <p className="probe-note">One side alone scores a third. Illustration only; no order is placed.</p>
     </div>
   );
 }
 
 // ---------------- horizontal bars for comparing candidates on one measure ----------------
 export function Bars({ rows, max, unit, highlight, decimals }: { rows: { key: string; label: ReactNode; value: number | null }[]; max?: number; unit: string; highlight?: string; decimals?: number }) {
-  const reduce = useReducedMotion();
   const top = max ?? Math.max(1, ...rows.map((r) => r.value ?? 0));
   return (
     <div className="stack" style={{ gap: 6 }}>
       {rows.map((r, i) => (
-        <div key={r.key} style={{ display: "grid", gridTemplateColumns: "minmax(0, 150px) minmax(0, 1fr) 64px", gap: 10, alignItems: "center", fontSize: "0.85rem" }}>
-          <span style={{ color: r.key === highlight ? "var(--ink)" : "var(--ink-2)", fontWeight: r.key === highlight ? 600 : 400 }}>{r.label}</span>
-          <span style={{ background: "var(--surface-2)", borderRadius: 4, height: 14, overflow: "hidden" }}>
-            <motion.span
-              style={{ display: "block", height: "100%", borderRadius: "0 4px 4px 0", background: r.key === highlight ? "var(--accent)" : "var(--muted)", opacity: r.key === highlight ? 1 : 0.55 }}
-              initial={{ width: reduce ? `${((r.value ?? 0) / top) * 100}%` : 0 }}
-              animate={{ width: `${((r.value ?? 0) / top) * 100}%` }}
-              transition={{ duration: 0.6, delay: reduce ? 0 : i * 0.05 }}
-            />
+        <div key={r.key} className={`hbar${r.key === highlight ? " on" : ""}`}>
+          <span className="hbar-label">{r.label}</span>
+          <span className="track">
+            <motion.span className="bar" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: (r.value ?? 0) / top }} transition={{ duration: T.scene, delay: Math.min(i * 0.03, 0.3), ease: EASE_ENTER }} />
           </span>
           <span className="num" style={{ textAlign: "right" }}>{r.value === null ? "–" : `${fmt.n(r.value, decimals ?? (r.value < 100 && !Number.isInteger(r.value) ? 1 : 0))}${unit}`}</span>
         </div>

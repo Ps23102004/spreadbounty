@@ -1,12 +1,15 @@
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { api, fmt, makerName, type Book, type CampaignRow, type Config, type EpochFile, type EpochSummary, type Report } from "../api";
-import { CountUp, Provenance, Reveal } from "../ui/bits";
-import { DepthChart, Ladder, Legend, ViewToggle, type DepthPoint } from "../ui/charts";
+import { Provenance } from "../ui/bits";
+import { PageHead } from "../ui/Schedule";
+import { SourceLabel } from "../ui/SourceLabel";
+import { BookLadder } from "../ui/BookLadder";
+import { DepthChart, Legend, ViewToggle, type DepthPoint } from "../ui/charts";
 
 const reportCache = new Map<string, Report>();
 
-export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow | null; config: Config | null; onDesign: () => void }) {
+export function Overview({ campaign, campaigns, onPick, config, onDesign }: { campaign: CampaignRow | null; campaigns: CampaignRow[]; onPick: (id: string) => void; config: Config | null; onDesign: () => void }) {
   const [epochs, setEpochs] = useState<EpochSummary[] | null>(null);
   const [sel, setSel] = useState<number | null>(null);
   const [file, setFile] = useState<EpochFile | null>(null);
@@ -18,7 +21,6 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
     setEpochs(null);
     setSel(null);
     api.epochs(campaign.id).then((es) => { setEpochs(es); setSel(es.length ? es[es.length - 1]!.n : null); });
-    api.book(campaign.pair, 1).then(setBook).catch(() => setBook(null));
   }, [campaign?.id]);
   useEffect(() => {
     if (!campaign || sel === null) return;
@@ -54,7 +56,15 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
   return (
     <>
       <section className="page-head">
-        <span className="label">Campaign · {campaign.id}</span>
+        <PageHead wp="A" title="Campaign ledger">
+          <label className="field">
+            <span className="label">Campaign</span>
+            <select value={campaign.id} onChange={(e) => onPick(e.target.value)}>
+              {campaigns.map((c) => <option key={c.id} value={c.id}>{c.pair} · {c.id} ({c.epochs} epoch{c.epochs === 1 ? "" : "s"})</option>)}
+            </select>
+          </label>
+          <SourceLabel config={config} campaign={campaign} />
+        </PageHead>
         {m ? (
           <div className="hero">
             <div className="stack" style={{ gap: 10 }}>
@@ -68,7 +78,7 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div className="hero-figure"><CountUp value={Math.round(m.twoSidedCoveragePct * 10) / 10} decimals={m.twoSidedCoveragePct % 1 ? 1 : 0} /><small>%</small></div>
+              <div className="hero-figure">{fmt.pct(Math.round(m.twoSidedCoveragePct * 10) / 10).replace("%", "")}<small>%</small></div>
               <span className="muted">of {m.samplesWithPrice} samples in epoch {m.epoch}</span>
             </div>
           </div>
@@ -94,19 +104,19 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
       )}
 
       {m && (
-        <Reveal>
+        <>
           <div className="kpis">
             <Kpi label={`Depth, thinner side`} value={fmt.n(m.avgTwoSidedDepthQuote)} unit={quote} delta={prev ? change(m.avgTwoSidedDepthQuote, prev.metrics.avgTwoSidedDepthQuote) : null} />
             <Kpi label="Cost per $1k of depth" value={m.costPer1kDepthQuote === null ? "–" : fmt.usd(m.costPer1kDepthQuote)} unit={quote} delta={prev && m.costPer1kDepthQuote !== null && prev.metrics.costPer1kDepthQuote !== null ? change(m.costPer1kDepthQuote, prev.metrics.costPer1kDepthQuote, true) : null} />
             <Kpi label="Paid of budget" value={fmt.usd(m.paidRewardTokens)} unit={`/ ${fmt.usd(m.budgetRewardTokens)}`} delta={null} />
             <Kpi label="Makers paid" value={String(m.makersPaid)} unit={`top ${fmt.pct(Math.round(m.topMakerSharePct * 10) / 10)}`} delta={prev ? diff(m.makersPaid, prev.metrics.makersPaid) : null} />
           </div>
-        </Reveal>
+        </>
       )}
 
       {points.length > 0 && (
         <div className="grid-2">
-          <Reveal delay={0.05}>
+          <>
             <section className="panel">
               <div className="panel-head">
                 <div className="stack" style={{ gap: 2 }}>
@@ -129,8 +139,8 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
                 </>
               )}
             </section>
-          </Reveal>
-          <Reveal delay={0.1}>
+          </>
+          <>
             <section className="panel">
               <div className="panel-head">
                 <div className="stack" style={{ gap: 2 }}>
@@ -138,20 +148,16 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
                   <span className="muted" style={{ fontSize: "0.85rem" }}>Maker orders resting at block {book ? fmt.n(book.head) : "…"}; shaded rows earn rewards</span>
                 </div>
               </div>
-              {book && (book.bids.length || book.asks.length) ? (
-                <Ladder bids={book.bids} asks={book.asks} refPrice={book.refPrice} bandBps={book.bandBps} unit={base} decimals={campaign.pair.startsWith("MON") ? 6 : 4} />
-              ) : (
-                <p className="muted">{book ? "No resting orders in the last hour of logs." : "Loading the book…"}</p>
-              )}
+              <BookLadder campaign={campaign} onBook={setBook} />
             </section>
-          </Reveal>
+          </>
         </div>
       )}
 
       {cur && file && (
         <div className="grid-2">
-          <Reveal delay={0.12}><Payouts cur={cur} file={file} quote={quote} /></Reveal>
-          <Reveal delay={0.16}><ReportCard campaignId={campaign.id} n={cur.n} config={config} /></Reveal>
+          <Payouts cur={cur} file={file} quote={quote} />
+          <ReportCard campaignId={campaign.id} n={cur.n} config={config} />
         </div>
       )}
     </>
@@ -201,8 +207,8 @@ function Payouts({ cur, file, quote }: { cur: EpochSummary; file: EpochFile; quo
                   <td title={a}><span className="addr">{makerName(a)}</span></td>
                   <td className="r">{orders.get(a) ?? 0}</td>
                   <td style={{ minWidth: 90 }}>
-                    <span style={{ display: "block", background: "var(--surface-2)", borderRadius: 4, height: 10 }}>
-                      <motion.span style={{ display: "block", height: "100%", borderRadius: "0 4px 4px 0", background: "var(--accent)" }} initial={{ width: 0 }} animate={{ width: `${(p / total) * 100}%` }} transition={{ duration: 0.6, delay: i * 0.05 }} />
+                    <span className="track share">
+                      <motion.span className="bar" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: p / total }} transition={{ duration: 0.6, delay: Math.min(i * 0.03, 0.3), ease: [0.16, 1, 0.3, 1] }} />
                     </span>
                   </td>
                   <td className="r">{p ? fmt.usd(p) : "–"}</td>
@@ -254,11 +260,11 @@ function ReportCard({ campaignId, n, config }: { campaignId: string; n: number; 
       {busy && !r && <p className="muted row"><span className="spinner" /> Writing with {who}…</p>}
       {err && <p className="note bad">{err}</p>}
       {r && (
-        <motion.div key={r.markdown} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="stack" style={{ gap: 12 }}>
+        <div className="stack" style={{ gap: 12 }}>
           <p className="prose">{r.markdown}</p>
           <Provenance by={r.ai.writtenBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} />
           <span className="muted" style={{ fontSize: "0.8rem" }}>Payout root <span className="mono">{fmt.short(r.root)}</span></span>
-        </motion.div>
+        </div>
       )}
     </section>
   );

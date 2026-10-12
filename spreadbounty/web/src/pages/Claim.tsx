@@ -2,7 +2,9 @@ import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { leafHash, verifyProof } from "../../../src/core/score";
 import { api, fmt, makerName, type CampaignRow, type Claim as ClaimData, type Config, type DropRecord, type EpochFile } from "../api";
-import { Copy, Reveal } from "../ui/bits";
+import { Copy } from "../ui/bits";
+import { MarketTabs, PageHead } from "../ui/Schedule";
+import { SourceLabel } from "../ui/SourceLabel";
 
 const DROP = new ethers.utils.Interface([
   "function claim(address account, uint256 cumulativeAmount, bytes32 expectedMerkleRoot, bytes32[] merkleProof)",
@@ -95,7 +97,7 @@ export function Claim({ campaign, config }: { campaign: CampaignRow | null; conf
   return (
     <>
       <section className="page-head">
-        <span className="label">Claim · {campaign.pair}</span>
+        <PageHead wp="C-4" title={`Claim · ${campaign.pair}`}><MarketTabs on="claim" />{drop && drop.chainId !== 143 && <SourceLabel config={config} chainId={drop.chainId} />}</PageHead>
         <h1>Makers claim their running total with one proof.</h1>
         <p>Payouts are cumulative: each epoch publishes one Merkle root over every maker's total so far, and the distributor pays the difference from what was already claimed. Skip a week and you lose nothing.</p>
       </section>
@@ -117,7 +119,7 @@ export function Claim({ campaign, config }: { campaign: CampaignRow | null; conf
       </section>
 
       {claim && latest && (
-        <Reveal>
+        <>
           <div className="grid-2">
             <section className="panel">
               <div className="panel-head">
@@ -165,7 +167,7 @@ export function Claim({ campaign, config }: { campaign: CampaignRow | null; conf
               )}
             </section>
           </div>
-        </Reveal>
+        </>
       )}
     </>
   );

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api, fmt, type Config, type DesignResult, type Step } from "../api";
-import { Provenance, Reveal, Steps, type StepState } from "../ui/bits";
+import { Provenance, Steps, type StepState } from "../ui/bits";
+import { PageHead } from "../ui/Schedule";
 import { Bars, ViewToggle } from "../ui/charts";
 
 const EXAMPLES = [
@@ -71,7 +72,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
   return (
     <>
       <section className="page-head">
-        <span className="label">Campaign copilot</span>
+        <PageHead wp="B" title="Design a campaign" />
         <h1>Say what you want the book to look like. Get settings that history backs up.</h1>
         <p>The model turns your sentence into a few fields. The code then replays the last hours of Kuru order logs, backtests a grid of settings and picks one by a fixed rule. The model writes the brief last, and any number it can't trace back to the backtest is rejected.</p>
       </section>
@@ -94,8 +95,8 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
             {error && <p className="note bad">{error}</p>}
           </section>
           {r ? (
-            <Reveal>
-              <section className="panel" style={{ borderColor: "var(--accent)" }}>
+            <>
+              <section className="panel" style={{ borderColor: "var(--edge)" }}>
                 <div className="panel-head">
                   <h2>{r.pilot ? "Recommended pilot" : "Recommended"}</h2>
                   <span className="badge accent">{r.campaign.pair}</span>
@@ -103,8 +104,8 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
                 <div className="kpis" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
                   <div className="kpi"><span className="label">Band</span><span className="kpi-value">{r.recommended.bandBps} bps</span></div>
                   <div className="kpi"><span className="label">Minimum rest</span><span className="kpi-value">{r.recommended.minRestBlocks} blocks</span></div>
-                  <div className="kpi" style={{ borderLeft: 0, borderTop: "1px solid var(--hairline)" }}><span className="label">Two-sided in backtest</span><span className="kpi-value">{fmt.pct(r.recommended.twoSidedCoveragePct)}</span></div>
-                  <div className="kpi" style={{ borderTop: "1px solid var(--hairline)" }}><span className="label">Budget per epoch</span><span style={{ whiteSpace: "nowrap" }}><span className="kpi-value">{fmt.usd(Number(r.campaign.budgetPerEpoch) / 1e6)}</span> <span className="muted">{quote}</span></span></div>
+                  <div className="kpi" style={{ borderLeft: 0, borderTop: "1px solid var(--rule)" }}><span className="label">Two-sided in backtest</span><span className="kpi-value">{fmt.pct(r.recommended.twoSidedCoveragePct)}</span></div>
+                  <div className="kpi" style={{ borderTop: "1px solid var(--rule)" }}><span className="label">Budget per epoch</span><span style={{ whiteSpace: "nowrap" }}><span className="kpi-value">{fmt.usd(Number(r.campaign.budgetPerEpoch) / 1e6)}</span> <span className="muted">{quote}</span></span></div>
                 </div>
                 <p className="prose">{r.brief}</p>
                 <Provenance by={r.ai.briefBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} />
@@ -116,7 +117,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
                 {published && <p className="note">Saved as <code>{published.path}</code>. Epoch 0 starts at block {fmt.n(r.campaign.replayFromBlock)}; makers see the rules before any order counts.</p>}
                 {pubErr && <p className="note bad">{pubErr}</p>}
               </section>
-            </Reveal>
+            </>
           ) : (
             <section className="panel"><p className="muted">The recommendation appears here when the backtest finishes.</p></section>
           )}
@@ -124,7 +125,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
       )}
 
       {r && (
-        <Reveal delay={0.08}>
+        <>
           <section className="panel">
             <div className="panel-head">
               <div className="stack" style={{ gap: 2 }}>
@@ -161,7 +162,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
               </div>
             )}
           </section>
-        </Reveal>
+        </>
       )}
     </>
   );

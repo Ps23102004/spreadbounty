@@ -1,160 +1,102 @@
-import { ethers } from "ethers";
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { verifyEpoch } from "../../../src/core/epoch";
-import { merkleRoot } from "../../../src/core/score";
-import { api, fmt, makerName, type CampaignRow, type Config, type EpochFile, type EpochSummary } from "../api";
-import { Reveal, Steps, type StepState } from "../ui/bits";
+import { fmt, makerName, type CampaignRow, type Config } from "../api";
+import { ErrorNote, PageHead, Schedule, Skeleton } from "../ui/Schedule";
+import { SourceLabel } from "../ui/SourceLabel";
+import { Stamp } from "../ui/Stamp";
+import { Tape } from "../ui/Tape";
+import { Tick } from "../ui/Tick";
+import { useRecompute } from "../ui/useRecompute";
+import { HashDiff } from "../ui/HashDiff";
 
-type Row = { key: string; title: string; detail?: string; state: StepState };
-interface Outcome { ok: boolean; committed: string; recomputed: string; diffs: string[]; ms: number; forged: string | null }
-
-const tick = () => new Promise((r) => setTimeout(r, 0));
-
-/** Add 1 token to the top maker's payout and rebuild a self-consistent Merkle root: what a dishonest operator would publish. */
-function forge(f: EpochFile): { file: EpochFile; who: string } {
-  const top = [...f.amounts].sort((a, b) => (BigInt(b.amount) > BigInt(a.amount) ? 1 : -1))[0]!;
-  const bump = BigInt(10 ** f.campaign.rewardDecimals);
-  const amounts = f.amounts.map((a) => (a.account === top.account ? { ...a, amount: (BigInt(a.amount) + bump).toString() } : a));
-  const cumulative = f.cumulative.map((a) => (a.account === top.account ? { ...a, amount: (BigInt(a.amount) + bump).toString() } : a));
-  const root = merkleRoot(cumulative.map((c) => [c.account, BigInt(c.amount)] as [string, bigint]));
-  return { file: { ...f, amounts, cumulative, root }, who: top.account };
-}
-
+/** W/P V: the full recompute. Same `useRecompute` as Start, so both reach the same verdict for the same epoch. */
 export function Verify({ campaign, config }: { campaign: CampaignRow | null; config: Config | null }) {
-  const [epochs, setEpochs] = useState<EpochSummary[]>([]);
-  const [n, setN] = useState<number | null>(null);
-  const [forged, setForged] = useState(false);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [out, setOut] = useState<Outcome | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!campaign) return;
-    api.epochs(campaign.id).then((es) => { setEpochs(es); setN(es.length ? es[es.length - 1]!.n : null); });
-    setRows([]);
-    setOut(null);
-  }, [campaign?.id]);
-
-  if (!campaign) return <p className="muted">No campaign to verify yet.</p>;
-  const demo = config?.dataSource !== "live";
-
-  const run = async () => {
-    if (n === null) return;
-    setBusy(true);
-    setOut(null);
-    const t0 = performance.now();
-    const list: Row[] = [];
-    const push = (r: Row) => { list.push(r); setRows([...list]); };
-    const update = (key: string, patch: Partial<Row>) => { const i = list.findIndex((r) => r.key === key); list[i] = { ...list[i]!, ...patch }; setRows([...list]); };
-    try {
-      push({ key: "files", title: "Download the committed results", state: "running" });
-      const files: EpochFile[] = [];
-      for (let k = 0; k <= n; k++) files.push(await api.epoch(campaign.id, k));
-      let forgedWho: string | null = null;
-      if (forged) {
-        const f = forge(files[n]!);
-        files[n] = f.file;
-        forgedWho = f.who;
-      }
-      update("files", { state: "done", detail: `${files.length} epoch file${files.length > 1 ? "s" : ""}; epoch ${n} commits root ${fmt.short(files[n]!.root)}${forged ? " (tampered copy)" : ""}` });
-
-      push({ key: "logs", title: "Download the order-book logs", state: "running" });
-      const logs = await api.logs(campaign.id, n);
-      update("logs", { state: "done", detail: `${fmt.n(logs.length)} OrderCreated / Canceled / Trade logs from block ${fmt.n(campaign.replayFromBlock)} to ${fmt.n(files[n]!.toBlock)}. Their digest is checked against the file below, so a missing or edited log is caught.` });
-
-      push({ key: "hashes", title: "Get block hashes for sample selection", state: "running" });
-      let hash: (b: number) => Promise<string>;
-      if (demo) {
-        hash = async (b) => ethers.utils.id(`spreadbounty-demo-block-${b}`);
-        update("hashes", { state: "done", detail: "Demo chain: hashes are keccak256(\"spreadbounty-demo-block-<n>\"), computed here. On mainnet they come from the RPC, so nobody can pick convenient sample blocks." });
-      } else {
-        const p = new ethers.providers.StaticJsonRpcProvider(config!.rpcUrl!, 143);
-        const cache = new Map<number, string>();
-        hash = async (b) => cache.get(b) ?? (await p.getBlock(b).then((x) => (cache.set(b, x.hash), x.hash)));
-        await hash(files[n]!.toBlock);
-        update("hashes", { state: "done", detail: `From ${config!.rpcUrl} directly, not from this server.` });
-      }
-
-      let prev: EpochFile | null = null;
-      let last: Awaited<ReturnType<typeof verifyEpoch>> | null = null;
-      for (const f of files) {
-        const key = `e${f.epoch}`;
-        push({ key, title: `Replay the book and score epoch ${f.epoch}`, state: "running" });
-        await tick();
-        const t = performance.now();
-        last = await verifyEpoch(f, logs, hash, prev);
-        const paid = last.recomputed.amounts.length;
-        update(key, {
-          state: last.ok ? "done" : "bad",
-          detail: last.ok
-            ? `${f.samples.length} sampled blocks, ${paid} maker${paid === 1 ? "" : "s"} paid, every field matches (${Math.round(performance.now() - t)} ms)`
-            : `Mismatch in ${last.diffs.map((d) => d.split(":")[0]).join(", ")}`,
-        });
-        if (!last.ok) break;
-        prev = f;
-      }
-      const target = files[files.length - 1]!;
-      setOut({ ok: !!last?.ok && last.recomputed.epoch === target.epoch, committed: target.root, recomputed: last!.recomputed.root, diffs: last!.diffs, ms: Math.round(performance.now() - t0), forged: forgedWho });
-    } catch (e: any) {
-      push({ key: "err", title: "Could not finish", detail: String(e?.message ?? e), state: "bad" });
-    }
-    setBusy(false);
-  };
+  const rc = useRecompute(campaign, config);
+  if (!campaign) return <p className="note">No campaign to verify yet. Design and publish one first.</p>;
+  const label = <SourceLabel config={config} campaign={campaign} />;
+  const sel = rc.epochs?.find((e) => e.n === rc.n) ?? null;
+  const out = rc.outcome;
+  const dec = 10 ** campaign.rewardDecimals;
+  const quote = campaign.pair.split("/")[1];
 
   return (
     <>
       <section className="page-head">
-        <span className="label">Verify · {campaign.pair}</span>
+        <PageHead wp="V" title={`Recompute · ${campaign.pair}`}>{label}</PageHead>
         <h1>Don't trust the payout list. Recompute it.</h1>
-        <p>Your browser downloads the public order logs and runs the same scoring code the operator ran: replay every order, pick sample blocks from block hashes, score two-sided depth, split the budget, build the Merkle root. If one number was changed, the roots won't match.</p>
+        <p>Your browser downloads the public order logs and runs the same scoring code the operator ran: replay every order, pick sample blocks from block hashes, score two-sided depth, split the budget, build the Merkle root. Change one number and the roots stop matching.</p>
       </section>
 
-      <section className="panel">
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <div className="row">
-            <label className="label" htmlFor="vepoch">Up to epoch</label>
-            <select id="vepoch" style={{ width: "auto" }} value={n ?? ""} onChange={(e) => setN(Number(e.target.value))}>
-              {epochs.map((e) => <option key={e.n} value={e.n}>{e.n}</option>)}
-            </select>
-            <label className="switch"><input type="checkbox" checked={forged} onChange={(e) => setForged(e.target.checked)} /> Try a forged payout</label>
+      <Schedule id="V-1" title="What to recompute">
+        {rc.epochs === null && !rc.error ? <Skeleton rows={2} h={28} /> : rc.epochs?.length === 0 ? (
+          <p className="ink2">No closed epoch to verify yet. Epoch 0 closes {fmt.n(campaign.epochBlocks)} blocks after block {fmt.n(campaign.replayFromBlock)}.</p>
+        ) : (
+          <div className="controls">
+            <label className="field">
+              <span className="label">Up to epoch</span>
+              <select value={rc.n ?? ""} onChange={(e) => rc.pick(Number(e.target.value))}>
+                {(rc.epochs ?? []).map((e) => <option key={e.n} value={e.n}>{e.n}</option>)}
+              </select>
+            </label>
+            <label className="switch">
+              <input type="checkbox" checked={rc.forged} onChange={(e) => rc.setForged(e.target.checked)} />
+              Forge a payout
+            </label>
+            <button className="btn recompute" onClick={() => { if (innerWidth < 880) document.getElementById("sch-V-2")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); rc.run(); }} disabled={rc.busy || rc.n === null || !config}>
+              {rc.busy ? <><span className="spinner" aria-hidden /> Recomputing…</> : "Recompute in this browser"}
+            </button>
           </div>
-          <button className="btn" onClick={run} disabled={busy || n === null}>{busy ? "Recomputing…" : "Recompute in this browser"}</button>
-        </div>
-        {forged && <p className="note">The tampered copy pays the top maker 1 extra token and carries a matching, well-formed Merkle root, so it looks valid on its own. Only recomputing from the logs exposes it.</p>}
-        {!demo && <p className="note">Logs come from this server's bundle and are checked against the committed digest; block hashes come straight from the RPC. For a fully independent check, run <code>npm run sb -- verify out/{campaign.id}/epoch-{n}.json</code>, which pulls the logs from the chain too.</p>}
-      </section>
+        )}
+        {rc.forged && <p className="note">The forged copy pays the top maker 1 extra token and carries a matching, well-formed Merkle root, so it looks valid on its own. Only recomputing from the logs exposes it.</p>}
+        {rc.error && <ErrorNote onRetry={rc.epochs ? rc.run : rc.reload}>{rc.error}</ErrorNote>}
+      </Schedule>
 
-      {rows.length > 0 && (
-        <div className="grid-2">
-          <section className="panel"><h2>Steps</h2><Steps items={rows} /></section>
-          <AnimatePresence mode="wait">
-            {out && (
-              <Reveal key={String(out.ok) + out.committed}>
-                <section className="panel" style={{ borderColor: out.ok ? "var(--good)" : "var(--critical)" }}>
-                  <motion.div initial={{ scale: 1.25, opacity: 0, rotate: -4 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", bounce: 0.35, duration: 0.6 }}>
-                    <span className={`stamp ${out.ok ? "good" : "bad"}`}>{out.ok ? "Verified" : "Mismatch: do not pay"}</span>
-                  </motion.div>
-                  <div className="roots">
-                    <div className="root-row"><span className="label">Committed</span><span className="hash">{out.committed}</span></div>
-                    <div className="root-row"><span className="label">Recomputed</span><HashDiff a={out.committed} b={out.recomputed} /></div>
-                  </div>
-                  <p className="ink2">
-                    {out.ok
-                      ? `Every sample, score, payout and the root match, recomputed in ${fmt.n(out.ms)} ms in your browser. Makers can claim against this root.`
-                      : `${out.forged ? `${makerName(out.forged)} was given an extra token. ` : ""}The logs don't support this payout list. Fields that differ: ${out.diffs.map((d) => d.split(":")[0]).join(", ")}.`}
-                  </p>
-                </section>
-              </Reveal>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+      <div className="verify-grid">
+        <Schedule id="V-2" title="Tape" desc="One line per finished step, printed by your browser." source={label}>
+          <Tape lines={rc.lines} label="Recompute steps" empty="Nothing printed yet. Press Recompute in this browser." />
+        </Schedule>
+
+        <Schedule id="V-3" title="Roots" source={label}
+          footer={<span>Computed by <b>the scorer in src/core</b> · Checked by {out ? <b className={out.ok ? "" : "bad-ink"}>your browser {out.ok ? <Tick /> : <Tick kind="exception" />}</b> : <b>nobody here yet</b>}</span>}>
+          <div className="roots v-roots">
+            <div className="root-row"><span className="label">Committed</span><span className="hash">{out?.committed ?? sel?.root ?? "…"}</span></div>
+            <div className="root-row"><span className="label">Recomputed</span>{out ? <HashDiff a={out.committed} b={out.recomputed} /> : <span className="hash muted">not yet, in this browser</span>}</div>
+          </div>
+          <div className="v-verdict">
+            <Stamp result={out} />
+            <p className={out ? (out.ok ? "ok" : "bad-ink") : "muted"}>
+              {out
+                ? out.ok
+                  ? `Every sample, score, payout and the root match. Your browser did the math in ${fmt.n(out.ms)} ms. Makers can claim against this root.`
+                  : `${out.forgedWho ? `${makerName(out.forgedWho)} was given 1 extra token. ` : ""}The logs don't support this payout list. Fields that differ: ${out.diffs.join(", ")}.`
+                : "The verdict prints here once the last epoch is rebuilt."}
+            </p>
+          </div>
+          <table className="v-epochs">
+            <thead><tr><th>Epoch</th><th className="r">Samples</th><th className="r">Makers paid</th><th className="r">Paid ({quote})</th><th className="r"><span className="sr-only">Check</span></th></tr></thead>
+            <tbody>
+              {(rc.epochs ?? []).filter((e) => rc.n === null || e.n <= rc.n).map((e) => {
+                const c = rc.checks.find((x) => x.epoch === e.n);
+                return (
+                  <tr key={e.n}>
+                    <td>{e.n}</td>
+                    <td className="r">{c ? c.samples : e.samples.length}</td>
+                    <td className="r">{c ? c.makersPaid : "–"}</td>
+                    <td className="r">{c ? fmt.usd(Number(c.paid) / dec) : "–"}</td>
+                    <td className="r tickcol">{c ? <Tick kind={c.ok ? "agreed" : "exception"} /> : <Tick kind="pending" />}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Schedule>
+      </div>
+
+      <Schedule id="V-5" title="What this proves, plainly">
+        {rc.demo ? (
+          <p className="ink2">This server runs the synthetic demo, so block hashes come from a fixed formula, <code>keccak256("spreadbounty-demo-block-&lt;n&gt;")</code>, computed here. The check is real: the same logs and hashes always give the same root, and the forged copy fails. On Monad the hashes come from the RPC, so nobody can pick convenient sample blocks.</p>
+        ) : (
+          <p className="ink2">Logs come from this server's bundle and are checked against the committed digest; block hashes come straight from the RPC you can see in the Network tab. For a fully independent check, run <code>npm run sb -- verify out/{campaign.id}/epoch-{rc.n}.json</code>, which pulls the logs from the chain too.</p>
+        )}
+      </Schedule>
     </>
   );
-}
-
-function HashDiff({ a, b }: { a: string; b: string }) {
-  if (a === b) return <span className="hash">{b}</span>;
-  return <span className="hash">{[...b].map((ch, i) => (ch === a[i] ? ch : <span key={i} className="diff">{ch}</span>))}</span>;
 }
