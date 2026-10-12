@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<title>Spreadbounty: demo (2:00)</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="assets/spreadbounty.css" />
+<style>
+  .bigwin { left: 640px; top: 96px; }
+  .col { position: absolute; left: 200px; width: 410px; }
+  .col .lab { font-size: 19px; display: block; margin-bottom: 18px; }
+  .col .hd { font-size: 50px; line-height: 1.08; }
+  .straddle { position: absolute; white-space: nowrap; width: max-content; line-height: 1; }
+  #ghP { background: var(--paper); } #ghD { background: var(--term); }
+  .rep { position: absolute; left: 200px; width: 1620px; font-family: var(--mono); font-size: 24px; line-height: 36px; color: var(--term-fg); }
+  .rep .line { white-space: pre-wrap; padding-left: 4ch; text-indent: -4ch; }
+  .clipl .line { overflow: hidden; text-overflow: clip; }
+  .note { position: absolute; width: 400px; }
+  .note .lab { font-size: 19px; }
+  .note .a { font-family: var(--serif); font-weight: 300; font-size: 40px; line-height: 1.12; margin-top: 12px; color: var(--term-fg); }
+  .note .b { font-family: var(--serif); font-weight: 300; font-style: italic; font-size: 32px; line-height: 1.2; margin-top: 16px; color: var(--term-dim); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="120" data-width="1920" data-height="1080">
+
+  <div id="gap">
+    <div id="gapl" class="abs mono" style="left:200px;top:calc(424px - var(--sa));font-size:38px;color:#bdb5a3;white-space:nowrap">AUSD/USDC on Kuru: <span style="color:#f0644a">no bids</span> · <span style="color:#f0644a">no asks</span></div>
+  </div>
+
+  <!-- ===================== PAPER WORLD ===================== -->
+  <div id="paper" class="world">
+    <div class="rules" id="rules"></div>
+    <div class="margin"></div>
+    <div class="grain"></div>
+    <div class="perf"></div>
+
+    <!-- D1 hook (paper half) -->
+    <section id="d1p" class="clip" data-start="0" data-duration="12.2" data-track-index="1">
+      <div id="d1h" class="abs serif ink split" style="left:200px;top:72px;font-size:110px;width:1500px">
+        <span class="row">A stablecoin</span>
+        <span class="row it">with no book.</span>
+      </div>
+    </section>
+
+    <!-- D2 one-liner + wordmark -->
+    <section id="d2p" class="clip" data-start="12" data-duration="10.4" data-track-index="1">
+      <div id="d2h" class="abs serif ink split" style="left:200px;top:250px;font-size:156px;width:1680px;line-height:1.02">
+        <span class="row">Sponsors pay for depth</span>
+        <span class="row it">they can’t check.</span>
+      </div>
+      <div id="d2lab" class="abs lab soft hid" style="left:206px;top:372px">Metropolis (Monad) · Track 1 · Onchain Finance &amp; Trading</div>
+      <div id="wmP" class="straddle serif ink" style="left:186px;top:485px;font-size:230px" data-layout-allow-overlap data-layout-allow-occlusion>Spreadbounty</div>
+    </section>
+
+    <!-- D3 copilot (demo, then live) -->
+    <section id="d3p" class="clip" data-start="21.9" data-duration="18.5" data-track-index="1">
+      <div id="c3a" class="col" style="top:150px">
+        <span class="lab soft">Design a campaign</span>
+        <div class="hd serif ink split"><span class="row">One sentence in.</span><span class="row it">A backtested campaign out.</span></div>
+      </div>
+      <div id="c3b" class="col hid" style="top:150px">
+        <span class="lab soft">Same copilot · Monad mainnet</span>
+        <div class="hd serif ink split"><span class="row">Read-only,</span><span class="row it">on real Kuru logs.</span></div>
+      </div>
+      <div id="w3" class="win bigwin">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#design</span></div>
+        <div class="app" id="a3" data-src="assets/ui/design-input.png,assets/ui/design-running.png,assets/ui/design-result.png" data-s="0.95" data-h="800"></div>
+      </div>
+      <div id="w3L" class="win bigwin hid">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:18787/#design</span></div>
+        <div class="app" id="a3L" data-src="assets/ui/live-design-result.png" data-s="0.95" data-h="800"></div>
+      </div>
+      <svg id="p3" class="pointer hid" viewBox="0 0 44 56" style="left:1704px;top:671px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
+      <div id="r3" class="ripple hid" style="left:1662px;top:629px"></div>
+    </section>
+
+    <!-- D4 overview -->
+    <section id="d4p" class="clip" data-start="39.9" data-duration="15.3" data-track-index="1">
+      <div id="c4" class="col" style="top:150px">
+        <span class="lab soft">Overview · demo campaign</span>
+        <div class="hd serif ink split"><span class="row">Every hour</span><span class="row it">is an epoch.</span></div>
+      </div>
+      <div id="w4" class="win bigwin">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#overview</span></div>
+        <div class="app" id="a4" data-src="assets/ui/ov.png" data-s="0.95" data-h="800"></div>
+      </div>
+      <div id="box4" class="abs hid" style="left:640px;top:588px;width:752px;height:146px;border:4px solid var(--ask);background:rgba(201,58,36,.06)"></div>
+    </section>
+
+    <!-- D5 makers -->
+    <section id="d5p" class="clip" data-start="54.9" data-duration="15.3" data-track-index="1">
+      <div id="c5" class="col" style="top:150px">
+        <span class="lab soft">Make markets</span>
+        <div class="hd serif ink split"><span class="row">Leave good</span><span class="row it">orders alone.</span></div>
+      </div>
+      <div id="w5" class="win bigwin">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#makers</span></div>
+        <div class="app" id="a5" data-src="assets/ui/makers.png" data-s="0.95" data-h="800"></div>
+      </div>
+    </section>
+
+    <!-- D8 claim -->
+    <section id="d8p" class="clip" data-start="99.9" data-duration="11.4" data-track-index="1">
+      <div id="c8" class="col" style="top:150px">
+        <span class="lab soft">Claim · local test chain</span>
+        <div class="hd serif ink split"><span class="row">The sponsor’s</span><span class="row">distributor.</span><span class="row it">Unmodified 1inch.</span></div>
+      </div>
+      <div id="w8" class="win bigwin">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#claim</span></div>
+        <div class="app" id="a8" data-src="assets/ui/claim-1337.png" data-s="0.95" data-h="800"></div>
+      </div>
+      <div id="c8b" class="abs serif ink split" style="left:200px;top:150px;font-size:84px;width:1600px"><span class="row">We never hold <i>the money.</i></span></div>
+    </section>
+
+    <!-- D9 close -->
+    <section id="d9p" class="clip" data-start="110.9" data-duration="9.1" data-track-index="1">
+      <div id="d9h" class="abs serif ink split" style="left:200px;top:120px;font-size:124px;width:1600px">
+        <span class="row">Depth you can verify,</span>
+        <span class="row it">on Monad.</span>
+      </div>
+      <div id="ghP" class="straddle mono ink" style="left:200px;top:442px;font-size:76px" data-layout-allow-overlap data-layout-allow-occlusion>github.com/Ps23102004/spreadbounty</div>
+    </section>
+  </div>
+
+  <!-- ===================== DARK WORLD ===================== -->
+  <div id="dark" class="world">
+    <div class="feed l"></div><div class="feed r"></div>
+    <div class="perf"></div>
+
+    <!-- D1 hook: the live market read -->
+    <section id="d1d" class="clip" data-start="0" data-duration="12.2" data-track-index="2">
+      <div id="hl1" class="abs hid" style="left:182px;top:617px;width:620px;height:108px;border-top:3px solid var(--ask-hi);border-bottom:3px solid var(--ask-hi);background:rgba(240,100,74,.08)"></div>
+      <div id="j1" class="term" style="left:200px;top:110px;width:1560px;height:830px;font-size:27px;line-height:34px">
+        <span class="line" id="j1c"><span class="dim">$ </span><span id="j1cmd">npm run sb -- market AUSD/USDC</span></span>
+        <span class="line jl">{</span>
+        <span class="line jl">  "market": "0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc",</span>
+        <span class="line jl">  "pair": "AUSD/USDC",</span>
+        <span class="line jl">  "verifiedKuruMarket": true,</span>
+        <span class="line jl">  "implementation": "0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0",</span>
+        <span class="line jl">  "pricePrecision": "10000000",</span>
+        <span class="line jl">  "sizePrecision": "1000000",</span>
+        <span class="line jl">  "tickSize": 100,</span>
+        <span class="line jl">  "tickBpsAtMid": null,</span>
+        <span class="line jl">  "minSize": 10,</span>
+        <span class="line jl">  "feesBps": {</span>
+        <span class="line jl">    "maker": 0,</span>
+        <span class="line jl">    "taker": 0</span>
+        <span class="line jl">  },</span>
+        <span class="line jl">  "bestBid": <span class="akh">null</span>,</span>
+        <span class="line jl">  "bestAsk": <span class="akh">null</span>,</span>
+        <span class="line jl">  "spreadBps": <span class="akh">null</span>,</span>
+        <span class="line jl">  "vault": {</span>
+        <span class="line jl">    "address": "0xb4549195f26c90865e1aeDC7EB1f5F322a31E2f7",</span>
+        <span class="line jl">    "quoting": false</span>
+        <span class="line jl">  },</span>
+        <span class="line jl">  "head": 112575289</span>
+        <span class="line jl">}</span>
+      </div>
+    </section>
+
+    <!-- D2 dark half of the wordmark -->
+    <section id="d2d" class="clip" data-start="12" data-duration="10.4" data-track-index="2">
+      <div id="wmD" class="straddle serif pfg" style="left:186px;top:485px;font-size:230px" data-layout-allow-overlap data-layout-allow-occlusion>Spreadbounty</div>
+      <div id="d2sub" class="abs mono dim hid" style="left:206px;top:760px;font-size:30px;white-space:nowrap">Verifiable maker-depth incentives for Kuru order books on Monad</div>
+    </section>
+
+    <!-- D5 the bot, paper mode -->
+    <section id="d5d" class="clip" data-start="54.9" data-duration="15.3" data-track-index="2">
+      <div id="b5" class="rep clipl" style="top:560px;font-size:22px;line-height:33px">
+        <span class="line b5r" id="b5c" style="white-space:pre;overflow:hidden"><span class="dim">$ </span>RPC_URL=http://127.0.0.1:18788 npm run bot -- run out/demo/campaign-ausd-usdc-demo.json --size 1000</span>
+        <span class="line b5r dim" style="white-space:pre;overflow:hidden">AUSD/USDC 0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc | campaign ausd-usdc-demo: band 15 bps, rest 20 blocks | bot 0x0000000000000000000000000000000000000000 (paper: nothing is sent)</span>
+        <span class="line b5r" style="white-space:pre">#111984021 centre 1 | others 0.9998 / 1.0002 | mine: none | inv 0 | share now 0% (~0.00/epoch)</span>
+        <span class="line b5r" style="white-space:pre">   would: <span class="bdh">bid 1000 @ 0.99947</span> (post-only)</span>
+        <span class="line b5r" style="white-space:pre">   would: <span class="akh">ask 1000 @ 1.00053</span> (post-only)</span>
+        <span class="line b5r" style="white-space:pre">#111984028 centre 1 | others 0.9998 / 1.0002 | mine: none | inv 0 | share now 0% (~0.00/epoch)</span>
+        <span class="line b5r" style="white-space:pre">   would: <span class="bdh">bid 1000 @ 0.99947</span> (post-only)</span>
+        <span class="line b5r" style="white-space:pre">   would: <span class="akh">ask 1000 @ 1.00053</span> (post-only)</span>
+        <span class="line b5r dim" style="white-space:pre">   …</span>
+      </div>
+    </section>
+
+    <!-- D6 verify -->
+    <section id="d6d" class="clip" data-start="69.9" data-duration="20.3" data-track-index="2">
+      <div id="c6" class="abs serif pfg split" style="left:160px;top:84px;font-size:80px;width:1700px"><span class="row">Anyone can recompute <i>every payout.</i></span></div>
+      <div id="w6" class="win" style="left:160px;top:236px">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#verify</span></div>
+        <div class="app" id="a6" data-src="assets/ui/verify-0.png,assets/ui/verify-running.png,assets/ui/verify-ok.png,assets/ui/verify-forged-on.png,assets/ui/verify-mismatch-2.png" data-s="0.95" data-h="560"></div>
+      </div>
+      <svg id="p6" class="pointer hid" viewBox="0 0 44 56" style="left:1183px;top:569px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
+      <div id="r6" class="ripple hid" style="left:1141px;top:527px"></div>
+      <div id="n6a" class="note hid" style="left:1490px;top:330px">
+        <div class="lab bdh">Honest copy</div>
+        <div class="a">Every sample, score<span style="display:block">and payout, recomputed.</span></div>
+        <div class="b">The roots match.</div>
+      </div>
+      <div id="n6b" class="note hid" style="left:1490px;top:330px">
+        <div class="lab akh">Forged copy</div>
+        <div class="a">One extra token.<span style="display:block">A well-formed root.</span></div>
+        <div class="b">Recomputed from the logs, it fails.</div>
+      </div>
+    </section>
+
+    <!-- D7 mainnet replay -->
+    <section id="d7d" class="clip" data-start="89.9" data-duration="10.3" data-track-index="2">
+      <div id="m7lab" class="abs lab dim hid" style="left:200px;top:96px">Monad mainnet · Kuru MON/USDC · read-only replay</div>
+      <div id="m7n" class="abs bdh hid" style="left:194px;top:150px;font-family:var(--stampface);font-size:330px;line-height:1">8/8</div>
+      <div id="m7h" class="abs serif pfg split" style="left:720px;top:196px;font-size:66px;width:1150px;line-height:1.08">
+        <span class="row">live orders matched the</span>
+        <span class="row it">contract’s own state.</span>
+      </div>
+      <div id="m7s" class="abs serif dim split" style="left:720px;top:376px;font-size:38px;width:1120px;line-height:1.2">
+        <span class="row">6,602 real book logs replayed. Two replays, one payout root.</span>
+      </div>
+      <div id="m7r" class="rep hid" style="top:540px;font-size:22px;line-height:32px">
+        <span class="line dim">$ jq -r '…' day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json   # the committed report</span>
+        <span class="line rl">[<span class="bdh">PASS</span>] 5 replay vs s_orders: 6602 book logs in blocks 112568360..112570360; 8 live orders replayed; <span class="bdh">8/8 match s_orders</span> at 112570360 (100.0%)</span>
+        <span class="line rl">[<span class="bdh">PASS</span>] 6 root determinism: 10 sample blocks, 1 scored makers; root A=0xb99b1b37f618b5634ea0e5a09af37028018f779b2f2174ec1476c891e843b3dc root B=0xb99b1b37f618b5634ea0e5a09af37028018f779b2f2174ec1476c891e843b3dc; log sets identical=true</span>
+      </div>
+    </section>
+
+    <!-- D8 test:drop -->
+    <section id="d8d" class="clip" data-start="99.9" data-duration="11.4" data-track-index="2">
+      <div id="t8" class="rep" style="top:560px;font-size:24px;line-height:38px">
+        <span class="line t8r"><span class="dim">$ </span>npm run test:drop<span class="dim">   # claim contract tests on an in-process EVM, chain id 1337 · excerpt</span></span>
+        <span class="line t8r">  <span class="bdh">ok</span>  vendored 1inch source matches upstream sha256; recompiling with solc 0.8.23 reproduces the committed bytecode</span>
+        <span class="line t8r">  <span class="bdh">ok</span>  refuses: a forged but well-formed root, a non-owner signer, a missing earlier epoch</span>
+        <span class="line t8r">  <span class="bdh">ok</span>  4 makers claimed their exact cumulative totals on-chain with our proofs; the drop is empty; double claims and stale roots revert</span>
+        <span class="line t8r"> </span>
+        <span class="line t8r"><span class="bdh">7 tests passed</span></span>
+      </div>
+    </section>
+
+    <!-- D9 close -->
+    <section id="d9d" class="clip" data-start="110.9" data-duration="9.1" data-track-index="2">
+      <div id="ghD" class="straddle mono pfg" style="left:200px;top:442px;font-size:76px" data-layout-allow-overlap data-layout-allow-occlusion>github.com/Ps23102004/spreadbounty</div>
+      <div id="s9" class="abs" style="left:200px;top:566px;width:1560px">
+        <div class="lab bdh s9r" style="font-size:20px">Status, plainly</div>
+        <div class="serif pfg s9r" style="font-size:46px;line-height:1.2;margin-top:16px">Read-only mainnet checks done; live orders, a live epoch and the distributor on Monad are pending.</div>
+        <div class="mono dim s9r" style="font-size:26px;line-height:1.5;margin-top:26px">npm run test:all → 32 tests pass · app screens use labelled synthetic data · built for Metropolis (Monad), Track 1</div>
+        <div class="mono pfg s9r" style="font-size:28px;margin-top:22px"><span class="dim">$ </span>cd spreadbounty &amp;&amp; npm install &amp;&amp; npm start</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="tLive" class="src live hid"><b>Live</b> · Monad mainnet (read-only)</div>
+  <div id="tDemo" class="src hid"><b>Demo data</b> (synthetic)</div>
+  <div id="tBot" class="src hid"><b>Demo data</b> · bot in paper mode</div>
+  <div id="tLocal" class="src hid"><b>Local test chain</b> (1337)</div>
+  <div id="caps"></div>
+
+  <audio id="sfx" src="assets/sfx.wav" data-start="0" data-duration="120" data-track-index="9"></audio>
+</div>
+
+<script>
+  // burned-in captions: the voice-over from docs/DEMO_SCRIPT.md, made honest for this take (AI off, no local chain run)
+  const CAPS = [
+    [0.4, 4.6, "This is AUSD/USDC on Kuru, Monad’s on-chain order book, read live from mainnet."],
+    [4.8, 7.6, "No bids. No asks."],
+    [7.8, 11.8, "A stablecoin with no book."],
+    [12.3, 16.6, "Issuers pay for depth through private deals they can’t check."],
+    [16.8, 21.8, "Spreadbounty pays any maker for tight, two-sided quotes, and anyone can recompute every payout from Kuru’s public logs."],
+    [22.4, 25.6, "A sponsor types what they want."],
+    [25.8, 29.2, "Rules read it into five fields. No model is running in this take."],
+    [29.4, 32.4, "Code replays the book and backtests settings with the real scorer."],
+    [32.6, 34.8, "With a model on, any number it can’t trace is rejected."],
+    [35.1, 39.8, "The same copilot, read-only on Monad mainnet: the last three hours of real MON/USDC logs, replayed."],
+    [40.3, 44.0, "Every hour is an epoch."],
+    [44.2, 48.6, "The sponsor sees coverage, depth inside the band, and cost per $1k of depth."],
+    [48.8, 54.7, "Maker E5 placed 38 orders and earned nothing: its quotes flickered and never rested 20 blocks."],
+    [55.3, 59.4, "Makers run our open-source bot. It quotes both sides and leaves good orders alone,"],
+    [59.6, 63.2, "because every requote resets the rest clock."],
+    [63.4, 69.7, "Same size, 2 transactions instead of 860, and more reward. Paper mode: nothing is sent."],
+    [70.3, 73.4, "Now the point."],
+    [73.6, 77.8, "Your browser downloads the logs and recomputes every epoch: verified."],
+    [78.0, 83.0, "Here’s a forged payout: one extra token, with a perfectly valid Merkle root."],
+    [83.2, 86.2, "Recompute: mismatch."],
+    [86.4, 89.7, "Nobody has to trust us."],
+    [90.3, 95.0, "On Monad mainnet, read-only: 8 of 8 live orders matched the contract’s own state in a 6,602-log MON/USDC replay."],
+    [95.2, 99.7, "Two independent replays produced the same payout root. A re-run for this video matched 8 of 8 again."],
+    [100.3, 105.2, "Makers claim from 1inch’s Merkle distributor, unmodified, which the sponsor owns and funds."],
+    [105.4, 110.7, "We never hold the money. In tests on a local chain, four makers claimed exactly their totals."],
+    [111.3, 115.6, "Spreadbounty. Depth you can verify, on Monad."],
+  ];
+  const capsEl = document.getElementById("caps");
+  capsEl.innerHTML = CAPS.map((c, i) => `<div class="cap" id="cap${i}" style="visibility:hidden;opacity:0">${c[2]}</div>`).join("");
+</script>
+<script src="assets/hf.js"></script>
+<script>
+  const W = (sel) => gsap.utils.toArray(`${sel} .mask > span`);
+  const tl = gsap.timeline({ paused: true });
+  const root = document.getElementById("root");
+  const paperIn = (sel, t, st = 0.06) => tl.fromTo(W(sel), { yPercent: 115 }, { yPercent: 0, duration: 0.55, ease: "power3.out", stagger: st }, t);
+  const paperOut = (sel, t) => tl.to(W(sel), { yPercent: -115, duration: 0.3, ease: "power2.in", stagger: 0.02 }, t);
+  const typeOn = (sel, t, dur, n) => tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: dur, ease: `steps(${n})` }, t);
+  const show = (sel, t) => tl.set(sel, { autoAlpha: 1 }, t);
+  const hide = (sel, t) => tl.set(sel, { autoAlpha: 0 }, t);
+  const print = (sel, t, gap) => tl.fromTo(sel, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: gap }, t);
+  const stampIn = (sel, t, rot) => tl.fromTo(sel, { autoAlpha: 0, scale: 1.75, rotation: rot - 9 }, { autoAlpha: 1, scale: 1, rotation: rot, duration: 0.11, ease: "power4.in" }, t)
+    .to(sel, { x: 3, y: 2, duration: 0.05, ease: "power1.out", yoyo: true, repeat: 1 }, t + 0.11);
+  const spread = (a, b, t, dur, ease) => tl.to(root, { "--sa": `${a}px`, "--sb": `${b}px`, duration: dur, ease }, t);
+  // chapter change: the terminal shutters over the frame in four steps, then reopens on the new world
+  const shutter = (t, toA, toB) => { spread(0, 0, t, 0.16, "steps(4)"); spread(toA, toB, t + 0.2, 0.2, "steps(4)"); };
+  const scroll = (app, y, s, t, dur) => tl.to(`${app} .pg`, { y: -y * s, duration: dur, ease: "power2.inOut" }, t);
+  const scrollSet = (app, y, s, t) => tl.set(`${app} .pg`, { y: -y * s }, t);
+  const state = (app, i, t) => show(`${app} .L${i}`, t);
+  const TAGS = ["#tLive", "#tDemo", "#tBot", "#tLocal"];
+  const tag = (on, t) => TAGS.forEach((s) => tl.set(s, { autoAlpha: s === on ? 1 : 0 }, t));
+  const click = (p, r, t) => {
+    tl.to(p, { scale: 0.86, duration: 0.06, yoyo: true, repeat: 1, ease: "power1.inOut" }, t);
+    tl.fromTo(r, { autoAlpha: 1, scale: 0.3 }, { scale: 1.3, autoAlpha: 0, duration: 0.4, ease: "power2.out", immediateRender: false }, t + 0.03);
+  };
+  CAPS.forEach((c, i) => { show(`#cap${i}`, c[0]); hide(`#cap${i}`, c[1]); });
+
+  tl.fromTo("#rules", { y: 0 }, { y: 64 * 6, duration: 120, ease: "none" }, 0);
+  tl.fromTo(".feed", { y: 0 }, { y: -80 * 6, duration: 120, ease: "none" }, 0);
+  tl.set(root, { "--sa": "0px", "--sb": "0px" }, 0);
+  hide(".perf", 0);
+
+  // ---------- D1 0–12 HOOK: AUSD/USDC read live (LIVE) ----------
+  tag("#tLive", 0);
+  typeOn("#j1cmd", 0.3, 0.6, 30);
+  print("#j1 .jl", 1.1, 0.06);
+  show("#hl1", 3.2);
+  tl.fromTo("#hl1", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power2.out", immediateRender: false }, 3.2);
+  show(".perf", 5.9);
+  spread(330, 560, 5.9, 0.24, "steps(4)");          // the spread opens: nothing in it
+  typeOn("#gapl", 6.3, 0.7, 34);
+  paperIn("#d1h", 7.8, 0.07);
+  // exit
+  paperOut("#d1h", 11.7);
+  tl.to("#gapl", { autoAlpha: 0, duration: 0.2 }, 11.7);
+
+  // ---------- D2 12–22 ONE-LINER (no data) ----------
+  tag(null, 12.0);
+  spread(1080, 1080, 12.0, 0.24, "steps(4)");
+  hide(".perf", 12.25);
+  paperIn("#d2h", 12.35, 0.07);
+  tl.fromTo("#d2h", { scale: 1, transformOrigin: "0% 50%" }, { scale: 1.05, duration: 4.1, ease: "none", immediateRender: false }, 12.35);
+  paperOut("#d2h", 16.45);
+  spread(600, 600, 16.7, 0.45, "power3.inOut");     // no perforation here: the wordmark itself is the seam
+  show("#d2lab", 17.0); typeOn("#d2lab", 17.0, 0.6, 30);
+  typeOn(".straddle.serif", 17.1, 0.9, 12);
+  show("#d2sub", 18.2); typeOn("#d2sub", 18.2, 0.9, 32);
+
+  // ---------- D3 22–40 COPILOT (DEMO, then LIVE) ----------
+  tag("#tDemo", 22.0);
+  spread(1080, 1080, 21.95, 0.4, "power3.inOut");
+  hide(".perf", 22.4);
+  paperIn("#c3a .hd", 22.3, 0.05);
+  tl.fromTo("#w3", { y: 900 }, { y: 0, duration: 0.6, ease: "power3.out" }, 22.1);
+  show("#p3", 24.2);
+  tl.fromTo("#p3", { x: -260, y: 200 }, { x: 0, y: 0, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 24.2);
+  click("#p3", "#r3", 25.4);
+  state("#a3", 1, 25.5);
+  hide("#p3", 26.0);
+  state("#a3", 2, 27.0);
+  scroll("#a3", 300, 0.95, 28.2, 0.9);
+  tl.to("#c3a", { autoAlpha: 0, duration: 0.25 }, 30.5);
+  tl.fromTo("#w3", { scale: 1, transformOrigin: "760px 560px" }, { scale: 1.2, duration: 0.7, ease: "power3.inOut", immediateRender: false }, 30.6);
+  tl.to("#w3", { scale: 1, duration: 0.5, ease: "power3.inOut" }, 34.1);
+  // live insert: hard cut on a shutter
+  shutter(34.85, 1080, 1080);
+  tag("#tLive", 35.0);
+  hide("#w3", 35.0);
+  show(["#w3L", "#c3b"], 35.0);
+  paperIn("#c3b .hd", 35.1, 0.05);
+  scrollSet("#a3L", 300, 0.95, 0);
+  tl.fromTo("#w3L", { scale: 1, transformOrigin: "0px 420px" }, { scale: 1.12, duration: 1.2, ease: "power2.inOut", immediateRender: false }, 36.2);
+
+  // ---------- D4 40–55 OVERVIEW (DEMO) ----------
+  shutter(39.85, 1080, 1080);
+  tag("#tDemo", 40.0);
+  paperIn("#c4 .hd", 40.1, 0.05);
+  scroll("#a4", 380, 0.95, 44.0, 1.0);
+  scroll("#a4", 700, 0.95, 48.6, 1.0);
+  tl.to("#c4", { autoAlpha: 0, duration: 0.3 }, 49.5);
+  tl.fromTo("#w4", { scale: 1, transformOrigin: "375px 544px" }, { scale: 1.25, duration: 0.7, ease: "power3.inOut", immediateRender: false }, 49.6);
+  show("#box4", 50.5);
+  tl.fromTo("#box4", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.45, ease: "power2.out", immediateRender: false }, 50.5);
+
+  // ---------- D5 55–70 MAKERS (DEMO · bot in paper mode) ----------
+  shutter(54.85, 1080, 1080);
+  tag("#tBot", 55.0);
+  paperIn("#c5 .hd", 55.1, 0.05);
+  scrollSet("#a5", 0, 0.95, 55.0);
+  scroll("#a5", 300, 0.95, 56.4, 0.9);
+  tl.fromTo("#w5", { scale: 1, transformOrigin: "300px 306px" }, { scale: 1.35, duration: 0.7, ease: "power3.inOut", immediateRender: false }, 58.0);
+  tl.to("#w5", { scale: 1, duration: 0.5, ease: "power3.inOut" }, 62.0);
+  show(".perf", 62.6);
+  spread(530, 530, 62.6, 0.5, "power3.inOut");       // the terminal rises: the bot itself, paper mode
+  typeOn("#b5c", 63.0, 0.7, 40);
+  print("#b5 .b5r:not(#b5c)", 63.8, 0.45);
+
+  // ---------- D6 70–90 VERIFY (DEMO) ----------
+  spread(0, 0, 69.85, 0.2, "steps(4)");
+  hide(".perf", 70.05);
+  tag("#tDemo", 70.0);
+  paperIn("#c6", 70.1, 0.04);
+  tl.fromTo("#w6", { y: 900 }, { y: 0, duration: 0.55, ease: "power3.out" }, 70.2);
+  show("#p6", 72.4);
+  tl.fromTo("#p6", { x: 240, y: 180 }, { x: 0, y: 0, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 72.4);
+  click("#p6", "#r6", 73.3);
+  state("#a6", 1, 73.45);
+  state("#a6", 2, 74.0);
+  hide("#p6", 74.0);
+  paperOut("#c6", 74.45);
+  tl.fromTo("#w6", { scale: 1, transformOrigin: "925px 493px" }, { scale: 1.2, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 74.6);
+  show("#n6a", 75.0);
+  tl.fromTo("#n6a > div", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.15 }, 75.0);
+  // flip the forged toggle
+  tl.to("#w6", { scale: 1, duration: 0.5, ease: "power3.inOut" }, 77.9);
+  hide("#n6a", 78.0);
+  paperIn("#c6", 78.1, 0.04);
+  show("#p6", 78.3);
+  tl.fromTo("#p6", { x: 0, y: 0 }, { x: -768, y: 0, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 78.3);
+  tl.set("#r6", { x: -768 }, 78.9);
+  click("#p6", "#r6", 79.0);
+  state("#a6", 3, 79.1);
+  show("#n6b", 79.5);
+  tl.fromTo("#n6b > div:nth-child(-n+2)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.15 }, 79.5);
+  tl.to("#p6", { x: 0, y: 0, duration: 0.6, ease: "power2.inOut" }, 81.6);
+  tl.set("#r6", { x: 0 }, 82.2);
+  click("#p6", "#r6", 82.4);
+  state("#a6", 4, 82.6);
+  hide("#p6", 82.9);
+  scroll("#a6", 140, 0.95, 82.8, 0.45);
+  paperOut("#c6", 83.2);
+  tl.fromTo("#w6", { scale: 1, transformOrigin: "925px 446px" }, { scale: 1.16, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 83.4);
+  tl.fromTo("#n6b > div:nth-child(3)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out" }, 83.6);
+
+  // ---------- D7 90–100 MAINNET REPLAY (LIVE) ----------
+  tag("#tLive", 90.0);
+  hide(["#w6", "#n6b", "#c6"], 90.0);
+  show("#m7lab", 90.1); typeOn("#m7lab", 90.1, 0.5, 28);
+  tl.fromTo("#m7n", { autoAlpha: 0, scale: 1.3, transformOrigin: "0% 50%" }, { autoAlpha: 1, scale: 1, duration: 0.1, ease: "power4.in" }, 90.4);
+  paperIn("#m7h", 90.6);
+  paperIn("#m7s", 91.2, 0.025);
+  show("#m7r", 92.0);
+  print("#m7r .line", 92.0, 0.3);
+
+  // ---------- D8 100–111 CLAIM (LOCAL TEST CHAIN 1337) ----------
+  shutter(99.85, 1080, 1080);
+  tag("#tLocal", 100.2);
+  paperIn("#c8 .hd", 100.1, 0.05);
+  scroll("#a8", 520, 0.95, 101.6, 1.0);
+  tl.to("#c8", { autoAlpha: 0, duration: 0.25 }, 102.7);
+  tl.fromTo("#w8", { scale: 1, x: 0, transformOrigin: "925px 547px" }, { scale: 1.3, x: -250, duration: 0.7, ease: "power3.inOut", immediateRender: false }, 102.8);
+  // the tests: the real 1inch contract on an in-process chain
+  tl.to("#w8", { y: 1000, duration: 0.45, ease: "power3.in" }, 105.2);
+  show(".perf", 105.4);
+  spread(500, 500, 105.4, 0.45, "power3.inOut");
+  paperIn("#c8b", 105.7);
+  print("#t8 .t8r", 106.0, 0.35);
+
+  // ---------- D9 111–120 CLOSE (no data) ----------
+  tag(null, 110.95);
+  spread(480, 480, 110.95, 0.4, "power3.inOut");
+  paperIn("#d9h", 111.2, 0.08);
+  typeOn("#ghP, #ghD", 111.8, 0.8, 34);
+  tl.fromTo("#s9 .s9r", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.25 }, 112.8);
+
+  window.__timelines["main"] = tl;
+</script>
+</body>
+</html>

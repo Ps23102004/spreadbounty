@@ -1,0 +1,9 @@
+{
+  "name": "spreadbounty-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "hyperframes check",
+    "render": "hyperframes render"
+  }
+}

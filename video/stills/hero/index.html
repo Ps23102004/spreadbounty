@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1280, height=640" />
+<title>Spreadbounty: README hero</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="assets/spreadbounty.css" />
+<style>
+  html, body { width: 1280px; height: 640px; }
+  #root { width: 1280px; height: 640px; --sa: 352px; --sb: 352px; }
+  #paper { clip-path: inset(0px 0px calc(640px - var(--sa)) 0px); }
+  .world { width: 1280px; height: 640px; }
+  .margin { left: 40px; height: 640px; }
+  .rules { width: 1280px; height: 720px; top: -10px; }
+  .perf { width: 1280px; }
+  .feed.l { left: 12px; } .feed.r { right: 12px; }
+  .src { right: 24px; bottom: 22px; font-size: 13px; padding: 7px 10px 6px; outline-offset: -5px; }
+  /* emblem: the book around the seam, bars only (no prices, no sizes) */
+  .eb { position: absolute; height: 18px; left: 936px; }
+  .eb.a { background: var(--ask); } .eb.b { background: var(--bid-hi); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="1" data-width="1280" data-height="640">
+  <div id="paper" class="world">
+    <div class="rules"></div><div class="margin"></div><div class="grain"></div><div class="perf"></div>
+    <div class="abs lab soft" style="left:76px;top:44px;font-size:14px">Metropolis (Monad) · Track 1 · Kuru order books</div>
+    <div class="abs serif ink" style="left:70px;top:70px;font-size:112px">Spreadbounty</div>
+    <div class="abs serif ink it" style="left:76px;top:206px;font-size:36px;width:760px;line-height:1.18">Sponsors pay for order-book depth. Anyone can recompute every payout.</div>
+    <div class="eb a" style="top:206px;width:250px"></div>
+    <div class="eb a" style="top:254px;width:96px"></div>
+    <div class="eb a" style="top:302px;width:40px"></div>
+  </div>
+  <div id="dark" class="world">
+    <div class="feed l"></div><div class="feed r"></div><div class="perf"></div>
+    <div class="eb b" style="top:384px;width:30px"></div>
+    <div class="eb b" style="top:432px;width:96px"></div>
+    <div class="eb b" style="top:480px;width:64px"></div>
+    <div class="eb b" style="top:528px;width:250px"></div>
+    <div class="abs bdh" style="left:72px;top:384px;font-family:var(--stampface);font-size:150px;line-height:1">8/8</div>
+    <div class="abs" style="left:290px;top:396px;width:620px">
+      <div class="serif pfg" style="font-size:30px;line-height:1.2">live orders matched the contract’s own state.</div>
+      <div class="serif it dim" style="font-size:23px;line-height:1.3;margin-top:10px">Read-only replay of 6,602 Kuru MON/USDC book logs on Monad mainnet, Oct 11.</div>
+    </div>
+    <div class="abs mono dim" style="left:76px;top:566px;font-size:15px">github.com/Ps23102004/spreadbounty</div>
+  </div>
+  <div class="src live"><b>Live</b> · Monad mainnet (read-only)</div>
+</div>
+<script>window.__timelines["main"] = gsap.timeline({ paused: true });</script>
+</body>
+</html>

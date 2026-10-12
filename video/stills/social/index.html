@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1200, height=630" />
+<title>Spreadbounty: social card</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="assets/spreadbounty.css" />
+<style>
+  html, body { width: 1200px; height: 630px; }
+  #root { width: 1200px; height: 630px; --sa: 392px; --sb: 392px; }
+  #paper { clip-path: inset(0px 0px calc(630px - var(--sa)) 0px); }
+  .world { width: 1200px; height: 630px; }
+  .margin { left: 40px; height: 630px; }
+  .rules { width: 1200px; height: 720px; top: -10px; }
+  .perf { width: 1200px; }
+  .feed.l { left: 12px; } .feed.r { right: 12px; }
+  .eb { position: absolute; height: 20px; left: 880px; }
+  .eb.a { background: var(--ask); } .eb.b { background: var(--bid-hi); }
+  .u { position: absolute; left: 76px; top: 370px; font-family: var(--mono); font-size: 44px; line-height: 1; white-space: nowrap; width: max-content; }
+  #uP { background: var(--paper); } #uD { background: var(--term); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="1" data-width="1200" data-height="630">
+  <div id="paper" class="world">
+    <div class="rules"></div><div class="margin"></div><div class="grain"></div><div class="perf"></div>
+    <div class="abs lab soft" style="left:76px;top:46px;font-size:14px">Built for Metropolis (Monad)</div>
+    <div class="abs serif ink" style="left:70px;top:72px;font-size:120px">Spreadbounty</div>
+    <div class="abs serif ink it" style="left:76px;top:218px;font-size:40px;width:760px;line-height:1.16">Pay for order-book depth on Monad. Verify every payout.</div>
+    <div class="eb a" style="top:244px;width:240px"></div>
+    <div class="eb a" style="top:296px;width:92px"></div>
+    <div class="eb a" style="top:348px;width:38px"></div>
+    <div id="uP" class="u ink" data-layout-allow-overlap data-layout-allow-occlusion>github.com/Ps23102004/spreadbounty</div>
+  </div>
+  <div id="dark" class="world">
+    <div class="feed l"></div><div class="feed r"></div><div class="perf"></div>
+    <div id="uD" class="u pfg" data-layout-allow-overlap data-layout-allow-occlusion>github.com/Ps23102004/spreadbounty</div>
+    <div class="eb b" style="top:444px;width:92px"></div>
+    <div class="eb b" style="top:496px;width:62px"></div>
+    <div class="eb b" style="top:548px;width:240px"></div>
+    <div class="abs serif it dim" style="left:76px;top:452px;width:760px;font-size:25px;line-height:1.35">Read-only mainnet checks done; live orders, a live epoch and the distributor on Monad are pending.</div>
+    <div class="abs mono dim" style="left:76px;top:548px;font-size:16px">32 tests pass · open source · Track 1, Onchain Finance &amp; Trading</div>
+  </div>
+</div>
+<script>window.__timelines["main"] = gsap.timeline({ paused: true });</script>
+</body>
+</html>

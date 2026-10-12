@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<title>Spreadbounty: launch (20s)</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="assets/spreadbounty.css" />
+<style>
+  /* straddling type: each world's copy carries its own ground, so the perforation never strikes through it */
+  #gP, #refP { background: var(--paper); } #gD, #refD { background: var(--term); }
+  .gh { position: absolute; left: 200px; top: 580px; font-family: var(--mono); font-size: 80px; line-height: 1; white-space: nowrap; width: max-content; }
+  .ref { position: absolute; left: 1500px; top: 616px; font-family: var(--mono); font-size: 40px; line-height: 48px; white-space: nowrap; width: max-content; }
+  #jq { font-size: 34px; line-height: 50px; }
+  #winO { left: 1150px; top: 32px; }
+  #winV { left: 160px; top: 236px; }
+  .rep { position: absolute; left: 200px; top: 590px; width: 1620px; font-family: var(--mono); font-size: 25px; line-height: 38px; color: var(--term-fg); }
+  .rep .line { white-space: pre-wrap; padding-left: 4ch; text-indent: -4ch; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="20" data-width="1920" data-height="1080">
+
+  <div id="gap">
+    <div id="gapl" class="abs mono" style="left:200px;top:calc(518px - var(--sa));font-size:38px;color:#bdb5a3;white-space:nowrap">AUSD/USDC on Kuru: <span style="color:#f0644a">no bids</span> · <span style="color:#f0644a">no asks</span></div>
+    <div id="gapl2" data-layout-allow-occlusion class="abs serif it split hid" style="left:200px;top:calc(500px - var(--sa));font-size:52px;color:#bdb5a3;width:900px"><span class="row">the spread</span></div>
+  </div>
+
+  <!-- ===================== PAPER WORLD: the market's human side, and the asks ===================== -->
+  <div id="paper" class="world">
+    <div class="rules" id="rules"></div>
+    <div class="margin"></div>
+    <div class="grain"></div>
+    <div class="perf"></div>
+
+    <section id="s1p" class="clip" data-start="0" data-duration="3.4" data-track-index="1">
+      <div id="hlab" class="abs lab soft" style="left:200px;top:62px">Kuru · AUSD/USDC · Monad mainnet</div>
+      <div id="hhead" class="abs serif ink split" style="left:200px;top:112px;font-size:110px;width:1600px">
+        <span class="row">Sponsors pay for depth</span>
+        <span class="row it">they can’t check.</span>
+      </div>
+    </section>
+
+    <section id="s2p" class="clip" data-start="3.0" data-duration="7.3" data-track-index="1">
+      <div id="bhead" class="abs serif ink split" style="left:200px;top:120px;font-size:100px;width:1100px"><span class="row">A sponsor sets <i>a bounty.</i></span></div>
+      <div id="stampB" class="stamp hid" style="left:1290px;top:96px;font-size:150px">Bounty<small>10 USDC / hour · ±15 bps</small></div>
+      <div id="mhead" class="abs serif ink split" style="left:200px;top:112px;font-size:66px;width:540px;line-height:1.06">
+        <span class="row">Makers earn by</span>
+        <span class="row">resting tight,</span>
+        <span class="row it">two-sided quotes.</span>
+      </div>
+      <div id="blab" class="abs lab soft hid" style="left:200px;top:398px;font-size:19px">Demo book · block 111,990,000</div>
+      <div class="lrow ask" id="a3" style="top:448px"><span class="px">1.0009</span><span class="bp">+9.0</span><span class="bar" style="width:560px"></span><span class="sz">6.2k</span></div>
+      <div class="lrow ask" id="a2" style="top:512px"><span class="px">1.0003</span><span class="bp">+3.0</span><span class="bar" style="width:183px"></span><span class="sz">2.0k</span></div>
+      <div class="lrow ask" id="a1" style="top:576px"><span class="px">1.0002</span><span class="bp">+2.0</span><span class="bar" style="width:70px"></span><span class="sz">768</span></div>
+      <div id="refP" class="ref ink" data-layout-allow-overlap data-layout-allow-occlusion>1.0000 ref</div>
+      <div id="winO" class="win">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#overview</span></div>
+        <div class="app" id="appO" data-src="assets/ui/ov.png" data-s="1.35" data-x0="738" data-w="502" data-h="410"></div>
+      </div>
+    </section>
+
+    <section id="s4p" class="clip" data-start="15.8" data-duration="4.2" data-track-index="1">
+      <div id="cta" class="abs serif ink split" style="left:200px;top:150px;font-size:128px;width:1600px">
+        <span class="row">Depth you can verify,</span>
+        <span class="row it">on Monad.</span>
+      </div>
+      <div id="gP" class="gh ink" data-layout-allow-overlap data-layout-allow-occlusion>github.com/Ps23102004/spreadbounty</div>
+    </section>
+  </div>
+
+  <!-- ===================== DARK WORLD: the machines, the bids, the verifier ===================== -->
+  <div id="dark" class="world">
+    <div class="feed l"></div><div class="feed r"></div>
+    <div class="perf"></div>
+
+    <section id="s1d" class="clip" data-start="0" data-duration="3.4" data-track-index="2">
+      <div id="jq" class="term" style="left:200px;top:726px;width:1500px;height:300px">
+        <span class="line" id="jq0"><span class="dim">$ </span><span id="jqc">npm run sb -- market AUSD/USDC</span></span>
+        <span class="line jr">  "bestBid": <span class="akh">null</span>,</span>
+        <span class="line jr">  "bestAsk": <span class="akh">null</span>,</span>
+        <span class="line jr">  "spreadBps": <span class="akh">null</span>,</span>
+        <span class="line jr dim" style="font-size:24px">  # excerpt · "head": 112575289 · Oct 11, 2026</span>
+      </div>
+    </section>
+
+    <section id="s2d" class="clip" data-start="3.0" data-duration="7.3" data-track-index="2">
+      <div class="lrow bid" id="b1" style="top:640px"><span class="px">0.9998</span><span class="bp">-2.0</span><span class="bar" style="width:44px"></span><span class="sz">483</span></div>
+      <div class="lrow bid" id="b2" style="top:704px"><span class="px">0.9997</span><span class="bp">-3.0</span><span class="bar" style="width:183px"></span><span class="sz">2.0k</span></div>
+      <div class="lrow bid" id="b3" style="top:768px"><span class="px">0.9996</span><span class="bp">-4.0</span><span class="bar" style="width:119px"></span><span class="sz">1.3k</span></div>
+      <div class="lrow bid" id="b4" style="top:832px"><span class="px">0.9991</span><span class="bp">-9.0</span><span class="bar" style="width:560px"></span><span class="sz">6.2k</span></div>
+      <div id="refD" class="ref pfg" data-layout-allow-overlap data-layout-allow-occlusion>1.0000 ref</div>
+      <div id="bandn" class="abs serif it dim hid" style="left:200px;top:916px;font-size:34px;white-space:nowrap">Every level inside the ±15 bps band. Orders must rest 20 blocks to count.</div>
+    </section>
+
+    <section id="s3d" class="clip" data-start="9.9" data-duration="6.2" data-track-index="2">
+      <div id="vhead" class="abs serif pfg split" style="left:200px;top:96px;font-size:84px;width:1640px"><span class="row">Anyone can recompute <i>every payout.</i></span></div>
+      <div id="winV" class="win">
+        <div class="bar"><b></b><b></b><b></b><span class="addr">localhost:8787/#verify</span></div>
+        <div class="app" id="appV" data-src="assets/ui/verify-forged-fresh.png,assets/ui/verify-forged-running.png,assets/ui/verify-mismatch.png" data-s="0.95" data-h="560"></div>
+      </div>
+      <svg id="ptr" class="pointer hid" viewBox="0 0 44 56" style="left:1192px;top:576px"><path d="M3 3 L3 44 L13 34 L20 52 L28 48 L21 31 L36 31 Z" fill="#1b1813" stroke="#ece6d6" stroke-width="3" stroke-linejoin="round"/></svg>
+      <div id="rip" class="ripple hid" style="left:1150px;top:534px"></div>
+      <div id="vnote" class="abs hid" style="left:1462px;top:300px;width:420px">
+        <div class="lab akh" style="font-size:20px">Forged copy</div>
+        <div class="serif pfg" style="font-size:42px;line-height:1.12;margin-top:12px">One extra token.<span style="display:block">A well-formed root.</span></div>
+        <div class="serif it dim" style="font-size:34px;line-height:1.2;margin-top:18px">Recomputed from the logs, it fails.</div>
+      </div>
+
+      <div id="mlab" class="abs lab dim hid" style="left:200px;top:96px">Monad mainnet · Kuru MON/USDC · read-only replay · Oct 11</div>
+      <div id="m88" class="abs bdh hid" style="left:194px;top:150px;font-family:var(--stampface);font-size:330px;line-height:1">8/8</div>
+      <div id="mhead2" class="abs serif pfg split" style="left:720px;top:196px;font-size:66px;width:1200px;line-height:1.08">
+        <span class="row">live orders matched the</span>
+        <span class="row it">contract’s own state.</span>
+      </div>
+      <div id="msub" class="abs serif dim split" style="left:720px;top:376px;font-size:38px;width:1120px;line-height:1.2">
+        <span class="row">6,602 real book logs replayed. Two replays, one payout root.</span>
+      </div>
+      <div id="rep" class="rep hid">
+        <span class="line dim">$ jq -r '…' day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json   # committed report</span>
+        <span class="line rl">[<span class="bdh">PASS</span>] 5 replay vs s_orders: 6602 book logs in blocks 112568360..112570360; 8 live orders replayed; <span class="bdh">8/8 match s_orders</span> at 112570360 (100.0%)</span>
+        <span class="line rl">[<span class="bdh">PASS</span>] 6 root determinism: 10 sample blocks, 1 scored makers; root A=0xb99b1b37f618b5634ea0e5a09af37028018f779b2f2174ec1476c891e843b3dc root B=0xb99b1b37f618b5634ea0e5a09af37028018f779b2f2174ec1476c891e843b3dc; log sets identical=true</span>
+      </div>
+    </section>
+
+    <section id="s4d" class="clip" data-start="15.8" data-duration="4.2" data-track-index="2">
+      <div id="gD" class="gh pfg" data-layout-allow-overlap data-layout-allow-occlusion>github.com/Ps23102004/spreadbounty</div>
+      <div id="ctaB" class="abs" style="left:200px;top:724px;width:1560px">
+        <div class="mono pfg" id="ctaCmd" style="font-size:32px"><span class="dim">$ </span>cd spreadbounty &amp;&amp; npm install &amp;&amp; npm start<span id="ctaCur" class="cursor"></span></div>
+        <div class="serif it dim" id="ctaNote" style="font-size:36px;margin-top:28px;line-height:1.25">Built for Metropolis (Monad). Read-only mainnet checks done; live orders, a live epoch and the distributor on Monad are pending.</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="tagLive" class="src live"><b>Live</b> · Monad mainnet (read-only)</div>
+  <div id="tagDemo" class="src hid"><b>Demo data</b> (synthetic)</div>
+
+  <audio id="sfx" src="assets/sfx.wav" data-start="0" data-duration="20" data-track-index="9"></audio>
+</div>
+
+<script src="assets/hf.js"></script>
+<script>
+  const W = (sel) => gsap.utils.toArray(`${sel} .mask > span`);
+  const tl = gsap.timeline({ paused: true });
+  const root = document.getElementById("root");
+  const paperIn = (sel, t, st = 0.06) => tl.fromTo(W(sel), { yPercent: 115 }, { yPercent: 0, duration: 0.55, ease: "power3.out", stagger: st }, t);
+  const paperOut = (sel, t) => tl.to(W(sel), { yPercent: -115, duration: 0.3, ease: "power2.in", stagger: 0.02 }, t);
+  const typeOn = (sel, t, dur, n) => tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: dur, ease: `steps(${n})` }, t);
+  const show = (sel, t) => tl.set(sel, { autoAlpha: 1 }, t);
+  const hide = (sel, t) => tl.set(sel, { autoAlpha: 0 }, t);
+  const print = (sel, t, gap) => tl.fromTo(sel, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: gap }, t);
+  const stampIn = (sel, t, rot) => tl.fromTo(sel, { autoAlpha: 0, scale: 1.75, rotation: rot - 9 }, { autoAlpha: 1, scale: 1, rotation: rot, duration: 0.11, ease: "power4.in" }, t)
+    .to(sel, { x: 3, y: 2, duration: 0.05, ease: "power1.out", yoyo: true, repeat: 1 }, t + 0.11);
+  // the spread: --sa is the paper's lower edge (best ask), --sb the terminal's upper edge (best bid)
+  const spread = (a, b, t, dur, ease) => tl.to(root, { "--sa": `${a}px`, "--sb": `${b}px`, duration: dur, ease }, t);
+  const scroll = (app, y, s, t, dur) => tl.to(`${app} .pg`, { y: -y * s, duration: dur, ease: "power2.inOut" }, t);
+  const tag = (on, t) => { ["#tagLive", "#tagDemo"].forEach((s) => tl.set(s, { autoAlpha: s === on ? 1 : 0 }, t)); };
+
+  // ambient: ledger rules drift one row, tractor-feed holes crawl
+  tl.fromTo("#rules", { y: 0 }, { y: 64, duration: 20, ease: "none" }, 0);
+  tl.fromTo(".feed", { y: 0 }, { y: -80, duration: 20, ease: "none" }, 0);
+
+  // ---------- 0–3 s HOOK: the empty book (LIVE, read-only) ----------
+  tl.set(root, { "--sa": "560px", "--sb": "560px" }, 0);
+  paperIn("#hhead", 0.1, 0.07);
+  spread(380, 700, 0.62, 0.24, "steps(4)");            // the spread opens: there is nothing in it
+  show("#jq0", 0.9); typeOn("#jqc", 0.9, 0.5, 30);
+  print("#jq .jr", 1.5, 0.16);
+  typeOn("#gapl", 1.6, 0.6, 34);
+  tl.to("#gapl", { clipPath: "inset(0% 100% 0% 0%)", duration: 0.25, ease: "steps(8)" }, 3.0);
+  show("#gapl2", 3.3); paperIn("#gapl2", 3.3); hide("#gapl2", 4.7);
+  // exit
+  paperOut("#hhead", 2.95);
+  tl.to("#hlab", { autoAlpha: 0, duration: 0.2 }, 2.95);
+  tl.to("#jq", { clipPath: "inset(0% 100% 0% 0%)", duration: 0.3, ease: "steps(10)" }, 2.95);
+
+  // ---------- 3–10 s SOLUTION: a bounty, makers rest quotes, the spread closes (DEMO DATA) ----------
+  tag("#tagDemo", 3.3);                                  // only once the live hook has fully left the frame
+  paperIn("#bhead", 3.15);
+  stampIn("#stampB", 3.7, -6);
+  show("#blab", 3.9); typeOn("#blab", 3.9, 0.35, 20);
+  // quotes come to rest one at a time; each one narrows the spread
+  const rest = (sel, t, a, b) => {
+    spread(a, b, t, 0.12, "steps(3)");
+    tl.fromTo(`${sel} .bar`, { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.32, ease: "power3.out" }, t + 0.04);
+    tl.fromTo(`${sel} .px, ${sel} .bp, ${sel} .sz`, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, t + 0.04);
+  };
+  rest("#a3", 4.1, 512, 700); rest("#b4", 4.35, 512, 832); rest("#a2", 4.6, 576, 832); rest("#b3", 4.85, 576, 768);
+  rest("#b2", 5.1, 576, 704); rest("#a1", 5.35, 640, 704); rest("#b1", 5.6, 640, 640);
+  tl.fromTo(".ref", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, 5.75);
+  typeOn(".ref", 5.75, 0.3, 10);
+  tl.fromTo("#bandn", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out" }, 6.0);
+  // the real app: the same book, as the sponsor sees it
+  paperOut("#bhead", 6.75);
+  tl.to("#stampB", { autoAlpha: 0, scale: 1.08, duration: 0.18, ease: "power2.in" }, 6.75);
+  tl.to(".ref", { autoAlpha: 0, duration: 0.15 }, 6.8);
+  paperIn("#mhead", 7.0, 0.05);
+  tl.fromTo("#winO", { y: 620 }, { y: 0, duration: 0.6, ease: "power3.out" }, 7.0);
+  tl.set("#appO .pg", { y: -459 * 1.35 }, 0);
+  tl.to("#bandn", { autoAlpha: 0, duration: 0.2 }, 9.5);
+
+  // ---------- 10–16 s SECRET SAUCE: anyone recomputes; the forged payout is caught; mainnet replay ----------
+  spread(0, 0, 9.9, 0.2, "steps(4)");                  // the verifier takes the frame
+  hide(".perf", 10.1);
+  hide(["#s2d .lrow", "#refD", "#bandn"], 10.1);
+  paperIn("#vhead", 10.05);
+  paperOut("#vhead", 11.6);
+  tl.fromTo("#winV", { y: 900 }, { y: 0, duration: 0.55, ease: "power3.out" }, 10.15);
+  show("#ptr", 10.6);
+  tl.fromTo("#ptr", { x: 220, y: 160 }, { x: 0, y: 0, duration: 0.4, ease: "power2.inOut", immediateRender: false }, 10.6);
+  tl.to("#ptr", { scale: 0.86, duration: 0.06, yoyo: true, repeat: 1, ease: "power1.inOut" }, 11.02);
+  tl.fromTo("#rip", { autoAlpha: 1, scale: 0.3 }, { scale: 1.3, autoAlpha: 0, duration: 0.4, ease: "power2.out", immediateRender: false }, 11.05);
+  show("#appV .L1", 11.2); show("#appV .L2", 11.36);
+  hide("#ptr", 11.3);
+  scroll("#appV", 140, 0.95, 11.3, 0.45);
+  tl.fromTo("#winV", { scale: 1, transformOrigin: "926px 446px" }, { scale: 1.16, duration: 0.6, ease: "power3.inOut", immediateRender: false }, 11.75);
+  show("#vnote", 10.45);
+  tl.fromTo("#vnote > div:nth-child(-n+2)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.15 }, 10.45);
+  tl.fromTo("#vnote > div:nth-child(3)", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out" }, 11.95);
+  // cut to mainnet evidence
+  tag("#tagLive", 13.3);
+  tl.set(["#winV", "#vnote", "#vhead"], { autoAlpha: 0 }, 13.3);
+  show("#mlab", 13.32); typeOn("#mlab", 13.32, 0.4, 28);
+  tl.fromTo("#m88", { autoAlpha: 0, scale: 1.3, transformOrigin: "0% 50%" }, { autoAlpha: 1, scale: 1, duration: 0.1, ease: "power4.in" }, 13.5);
+  paperIn("#mhead2", 13.6);
+  paperIn("#msub", 13.95, 0.025);
+  show("#rep", 14.2);
+  print("#rep .line", 14.2, 0.3);
+
+  // ---------- 16–20 s CTA ----------
+  tl.set(["#tagLive", "#tagDemo"], { autoAlpha: 0 }, 15.8);
+  show(".perf", 15.8);
+  spread(620, 620, 15.8, 0.45, "power3.inOut");
+  paperIn("#cta", 16.1, 0.08);
+  typeOn(".gh", 16.4, 0.75, 34);
+  tl.fromTo("#ctaCmd", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, 17.25);
+  tl.fromTo("#ctaNote", { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: 0.5, ease: "power3.out" }, 17.5);
+  tl.fromTo("#ctaCur", { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.3, ease: "steps(1)", repeat: 7, yoyo: true }, 17.6);
+
+  window.__timelines["main"] = tl;
+</script>
+</body>
+</html>
