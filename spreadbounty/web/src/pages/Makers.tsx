@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, fmt, type BotSim, type CampaignRow, type EpochSummary } from "../api";
-import { Copy, Reveal } from "../ui/bits";
+import { Copy } from "../ui/bits";
+import { PageHead } from "../ui/Schedule";
 import { Bars, ViewToggle } from "../ui/charts";
 
 const RULES = [
@@ -56,7 +57,7 @@ export function Makers({ campaign }: { campaign: CampaignRow | null }) {
   return (
     <>
       <section className="page-head">
-        <span className="label">Make markets · {campaign.pair}</span>
+        <PageHead wp="C" title={`Make markets · ${campaign.pair}`} />
         <h1>{fmt.usd(budget)} {quote} every {epochMin} minutes, for quoting both sides and letting orders rest.</h1>
         <p>The reference maker bot is open source and follows the same scoring rules as the payout code. Backtest it on a closed epoch below. The result is scored by the same epoch builder that pays makers, so the number is what you would have been paid.</p>
       </section>
@@ -82,7 +83,7 @@ export function Makers({ campaign }: { campaign: CampaignRow | null }) {
       {busy && !sim && <p className="muted row"><span className="spinner" /> Replaying epoch {n} three times…</p>}
 
       {sim && bot && naive && (
-        <Reveal>
+        <>
           <div className="grid-2">
             <section className="panel" style={{ borderColor: "var(--accent)" }}>
               <div className="panel-head">
@@ -126,7 +127,7 @@ export function Makers({ campaign }: { campaign: CampaignRow | null }) {
               <p className="note">The fill model is simple: a taker who hit a worse price than ours is assumed to have hit us first. Gas is not included, and a timer bot pays it {fmt.n(naive.txs)} times.</p>
             </section>
           </div>
-        </Reveal>
+        </>
       )}
 
       <div className="grid-2">

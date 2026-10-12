@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { verifyEpoch } from "../../../src/core/epoch";
 import { merkleRoot } from "../../../src/core/score";
 import { api, fmt, makerName, type CampaignRow, type Config, type EpochFile, type EpochSummary } from "../api";
-import { Reveal, Steps, type StepState } from "../ui/bits";
+import { Steps, type StepState } from "../ui/bits";
+import { PageHead } from "../ui/Schedule";
 
 type Row = { key: string; title: string; detail?: string; state: StepState };
 interface Outcome { ok: boolean; committed: string; recomputed: string; diffs: string[]; ms: number; forged: string | null }
@@ -105,7 +106,7 @@ export function Verify({ campaign, config }: { campaign: CampaignRow | null; con
   return (
     <>
       <section className="page-head">
-        <span className="label">Verify · {campaign.pair}</span>
+        <PageHead wp="V" title={`Recompute · ${campaign.pair}`} />
         <h1>Don't trust the payout list. Recompute it.</h1>
         <p>Your browser downloads the public order logs and runs the same scoring code the operator ran: replay every order, pick sample blocks from block hashes, score two-sided depth, split the budget, build the Merkle root. If one number was changed, the roots won't match.</p>
       </section>
@@ -130,7 +131,7 @@ export function Verify({ campaign, config }: { campaign: CampaignRow | null; con
           <section className="panel"><h2>Steps</h2><Steps items={rows} /></section>
           <AnimatePresence mode="wait">
             {out && (
-              <Reveal key={String(out.ok) + out.committed}>
+              <>
                 <section className="panel" style={{ borderColor: out.ok ? "var(--good)" : "var(--critical)" }}>
                   <motion.div initial={{ scale: 1.25, opacity: 0, rotate: -4 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", bounce: 0.35, duration: 0.6 }}>
                     <span className={`stamp ${out.ok ? "good" : "bad"}`}>{out.ok ? "Verified" : "Mismatch: do not pay"}</span>
@@ -145,7 +146,7 @@ export function Verify({ campaign, config }: { campaign: CampaignRow | null; con
                       : `${out.forged ? `${makerName(out.forged)} was given an extra token. ` : ""}The logs don't support this payout list. Fields that differ: ${out.diffs.map((d) => d.split(":")[0]).join(", ")}.`}
                   </p>
                 </section>
-              </Reveal>
+              </>
             )}
           </AnimatePresence>
         </div>

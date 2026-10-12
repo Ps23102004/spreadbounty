@@ -1,12 +1,14 @@
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { api, fmt, makerName, type Book, type CampaignRow, type Config, type EpochFile, type EpochSummary, type Report } from "../api";
-import { CountUp, Provenance, Reveal } from "../ui/bits";
+import { Provenance } from "../ui/bits";
+import { PageHead } from "../ui/Schedule";
+import { SourceLabel } from "../ui/SourceLabel";
 import { DepthChart, Ladder, Legend, ViewToggle, type DepthPoint } from "../ui/charts";
 
 const reportCache = new Map<string, Report>();
 
-export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow | null; config: Config | null; onDesign: () => void }) {
+export function Overview({ campaign, campaigns, onPick, config, onDesign }: { campaign: CampaignRow | null; campaigns: CampaignRow[]; onPick: (id: string) => void; config: Config | null; onDesign: () => void }) {
   const [epochs, setEpochs] = useState<EpochSummary[] | null>(null);
   const [sel, setSel] = useState<number | null>(null);
   const [file, setFile] = useState<EpochFile | null>(null);
@@ -54,7 +56,15 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
   return (
     <>
       <section className="page-head">
-        <span className="label">Campaign · {campaign.id}</span>
+        <PageHead wp="A" title="Campaign ledger">
+          <label className="field">
+            <span className="label">Campaign</span>
+            <select value={campaign.id} onChange={(e) => onPick(e.target.value)}>
+              {campaigns.map((c) => <option key={c.id} value={c.id}>{c.pair} · {c.id} ({c.epochs} epoch{c.epochs === 1 ? "" : "s"})</option>)}
+            </select>
+          </label>
+          <SourceLabel config={config} campaign={campaign} />
+        </PageHead>
         {m ? (
           <div className="hero">
             <div className="stack" style={{ gap: 10 }}>
@@ -68,7 +78,7 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div className="hero-figure"><CountUp value={Math.round(m.twoSidedCoveragePct * 10) / 10} decimals={m.twoSidedCoveragePct % 1 ? 1 : 0} /><small>%</small></div>
+              <div className="hero-figure">{fmt.pct(Math.round(m.twoSidedCoveragePct * 10) / 10).replace("%", "")}<small>%</small></div>
               <span className="muted">of {m.samplesWithPrice} samples in epoch {m.epoch}</span>
             </div>
           </div>
@@ -94,19 +104,19 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
       )}
 
       {m && (
-        <Reveal>
+        <>
           <div className="kpis">
             <Kpi label={`Depth, thinner side`} value={fmt.n(m.avgTwoSidedDepthQuote)} unit={quote} delta={prev ? change(m.avgTwoSidedDepthQuote, prev.metrics.avgTwoSidedDepthQuote) : null} />
             <Kpi label="Cost per $1k of depth" value={m.costPer1kDepthQuote === null ? "–" : fmt.usd(m.costPer1kDepthQuote)} unit={quote} delta={prev && m.costPer1kDepthQuote !== null && prev.metrics.costPer1kDepthQuote !== null ? change(m.costPer1kDepthQuote, prev.metrics.costPer1kDepthQuote, true) : null} />
             <Kpi label="Paid of budget" value={fmt.usd(m.paidRewardTokens)} unit={`/ ${fmt.usd(m.budgetRewardTokens)}`} delta={null} />
             <Kpi label="Makers paid" value={String(m.makersPaid)} unit={`top ${fmt.pct(Math.round(m.topMakerSharePct * 10) / 10)}`} delta={prev ? diff(m.makersPaid, prev.metrics.makersPaid) : null} />
           </div>
-        </Reveal>
+        </>
       )}
 
       {points.length > 0 && (
         <div className="grid-2">
-          <Reveal delay={0.05}>
+          <>
             <section className="panel">
               <div className="panel-head">
                 <div className="stack" style={{ gap: 2 }}>
@@ -129,8 +139,8 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
                 </>
               )}
             </section>
-          </Reveal>
-          <Reveal delay={0.1}>
+          </>
+          <>
             <section className="panel">
               <div className="panel-head">
                 <div className="stack" style={{ gap: 2 }}>
@@ -144,14 +154,14 @@ export function Overview({ campaign, config, onDesign }: { campaign: CampaignRow
                 <p className="muted">{book ? "No resting orders in the last hour of logs." : "Loading the book…"}</p>
               )}
             </section>
-          </Reveal>
+          </>
         </div>
       )}
 
       {cur && file && (
         <div className="grid-2">
-          <Reveal delay={0.12}><Payouts cur={cur} file={file} quote={quote} /></Reveal>
-          <Reveal delay={0.16}><ReportCard campaignId={campaign.id} n={cur.n} config={config} /></Reveal>
+          <Payouts cur={cur} file={file} quote={quote} />
+          <ReportCard campaignId={campaign.id} n={cur.n} config={config} />
         </div>
       )}
     </>
