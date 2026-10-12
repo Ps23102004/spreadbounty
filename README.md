@@ -6,7 +6,7 @@
 
 ![checks](https://img.shields.io/badge/checks-94%20passing-brightgreen) ![mainnet](https://img.shields.io/badge/mainnet-read--only%20verified-blue) ![status](https://img.shields.io/badge/live%20orders-not%20yet-lightgrey)
 
-Built for **Metropolis (Monad)**, Track 1: Onchain Finance & Trading. By Parth Singh, Aman, Aashna and Bence.
+Built for **Metropolis (Monad)**, Track 1: Onchain Finance & Trading. By Parth Singh. MIT licensed.
 
 ![A real click-through of the app](spreadbounty/docs/media/walkthrough.gif)
 

@@ -9,13 +9,13 @@ The portal asks: **introduce yourself, the problem, why you're building it.** Th
 1. Who are you, in one breath? (Course and school, or what you do. One line.)
 2. What got you interested in markets or on-chain trading? One true sentence, not a slogan.
 3. What is the moment that made this problem real for you? (The empty AUSD/USDC book is a good one: it is real, dated, and checkable.)
-4. Who are Aman, Aashna and Bence on this team, in four words each?
+4. How do you want to describe the AI help? (The repo says AI coding assistance, supervised by you, all code reviewed and tested. Say it in your own words.)
 5. What do you want from Metropolis? (The honest default below: a one-week pilot with a sponsor.)
 
 ## The script
 
 **0:00 to 0:15. Who I am**
-"Hi, I'm Parth Singh. I'm [what you study or do, and where]. With Aman, Aashna and Bence, I built Spreadbounty for Metropolis on Monad."
+"Hi, I'm Parth Singh. I'm [what you study or do, and where]. I built Spreadbounty for Metropolis on Monad, working with AI coding agents that I supervised."
 
 **0:15 to 0:45. The problem**
 "Kuru is Monad's on-chain order book. Some of its books are thin or empty. When we checked on October 11, the AUSD/USDC book, an official Kuru market, had no bids and no asks at all. Projects that want depth pay market makers through private deals, and they can't check what they got for the money."
