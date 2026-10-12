@@ -1,5 +1,7 @@
 # Spreadbounty
 
+![Spreadbounty](spreadbounty/docs/media/hero.png)
+
 Verifiable maker-depth incentives for Kuru order books on Monad. Built for **Metropolis (Monad)**, Track 1: Onchain Finance & Trading.
 
 - **What it is and why:** [`spreadbounty/PRODUCT.md`](spreadbounty/PRODUCT.md)

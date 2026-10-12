@@ -2,6 +2,10 @@
 
 Verifiable maker-depth incentives for Kuru order books on Monad. **What it is and why:** [PRODUCT.md](PRODUCT.md).
 
+![Spreadbounty](docs/media/hero.png)
+
+[20-second launch video](docs/media/spreadbounty-launch-20s.mp4) · [2-minute demo](docs/media/spreadbounty-demo-2m.mp4) · [launch copy](docs/LAUNCH.md)
+
 ![Overview](docs/screenshots/overview-light.png)
 
 ## Run it
