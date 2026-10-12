@@ -49,7 +49,7 @@ Every run writes `day0-report-<mode>-<ts>.json` with each step's result and ever
 |---|---|---|
 | 1b | `Router.verifiedMarket` and `MarginAccount.verifiedMarket` for the market | Both true. This proves `0x8cF49e…` is an official Kuru market, which the sponsor judge doubted. |
 | 1d | Tick size in bps at the reference price | ≤ 5 bps, so a ±5 bps quote fits inside a ±15 bps campaign band |
-| 2 | EIP-1967 implementation slot | Equals `0xea2C…23CD`. A WARN means the event decoder may not match: re-check the ABI before building. |
+| 2 | EIP-1967 implementation slot | Equals `0x5e34…99a0` (live on mainnet, equal to `Router.orderBookImplementation`). A WARN means the event decoder may not match: re-check the ABI before building. |
 | 3 | Maker deposits, then posts a post-only bid and ask | Two `OrderCreated` logs with `owner` = maker, and `s_orders` agrees. `MarketStateError` means the book is disabled. |
 | 4 | Taker swaps USDC→AUSD through `Router.anyToAnySwap` | A `Trade` log on our order id with `makerAddress` = maker and `txOrigin` = taker |
 | 5 | Replay the book from logs (last `LOOKBACK_BLOCKS`) and compare with `s_orders` at the same block | ≥ 95% of up to 30 live orders match (owner, size, price, side). This also validates the assumption that `Trade.updatedSize` is the remaining size. |

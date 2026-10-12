@@ -19,7 +19,7 @@ Skip slides 3 (Today), 7 (Dashboard), 9 (Copilot) and 13 (Business). Say the bus
 | Slide | Time | Say this, then move on |
 |---|---|---|
 | 1 Cover | 0:00–0:10 | "Spreadbounty: sponsors pay for order-book depth on Monad, and anyone can recompute who earned it." |
-| 2 Problem | 0:10–0:30 | "On October 9 Kuru's AUSD/USDC book had zero resting orders. A stablecoin with no book." |
+| 2 Problem | 0:10–0:30 | "On October 11 Kuru's AUSD/USDC book had zero resting orders. A stablecoin with no book." |
 | 4 One-liner | 0:30–0:45 | "Polymarket's maker rewards, moved onto an on-chain order book, so the scoring is public." |
 | 5 How | 0:45–1:05 | Fund, quote, sample, publish, claim. "Only the first step needs trust." |
 | 6 Score | 1:05–1:20 | "Tight, two-sided and patient wins. Flickering quotes earn nothing." |
@@ -50,7 +50,7 @@ Use the speaker notes as written. The budget, by slide, is 10 / 20 / 20 / 15 / 2
 
 | Number | Where it comes from |
 |---|---|
-| 0 resting orders on AUSD/USDC | Our read-only check, Oct 9 |
+| 0 resting orders on AUSD/USDC | Our read-only check, Oct 11 (day0/spreadbounty/reports) |
 | 8 of 8 orders matched contract state in a 6,602-log MON/USDC replay (read-only, Oct 11) | `day0/spreadbounty/reports/2026-10-11-check-MON-USDC.json` |
 | 20-block minimum rest ≈ 6 s; one sample per ~minute | Campaign rules; ~300 ms blocks |
 | 2.28 vs 1.58 vs 0.07 USDC; 2 vs 860 txs | Bot backtest, **synthetic** demo epoch 2 |

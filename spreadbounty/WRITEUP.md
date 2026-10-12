@@ -2,7 +2,7 @@
 
 **Sponsors pay for order-book depth on Monad. Anyone can recompute who earned it.**
 
-Track 1 · Onchain Finance & Trading · built on Kuru · [Demo video] · [Deck] · Code: https://github.com/Ps23102004/spreadbounty · Judge FAQ: `spreadbounty/FAQ.md`
+Track 1 · Onchain Finance & Trading · built on Kuru · [Demo video (2 min)](https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/docs/media/spreadbounty-demo-2m.mp4) · Deck: shared in the Metropolis profile · Code: https://github.com/Ps23102004/spreadbounty · Judge FAQ: `spreadbounty/FAQ.md`
 
 > **Short version (for a one-paragraph field).** Spreadbounty lets anyone fund maker rewards on a Kuru order book, such as "keep AUSD/USDC two-sided within 15 bps for $50/day". Any maker earns by resting tight bids and asks, scored about once a minute at block-hash-chosen samples with Polymarket's two-sided formula. Every epoch's payouts are recomputable by anyone from public Kuru logs, in a browser, and makers claim from an unmodified 1inch Merkle distributor the sponsor owns. An AI copilot turns a sponsor's sentence into a backtested campaign on Claude or a local model, and is kept out of the money path. It ships with an open-source maker bot.
 
@@ -10,7 +10,7 @@ Track 1 · Onchain Finance & Trading · built on Kuru · [Demo video] · [Deck] 
 
 ## The problem
 
-Kuru is Monad's on-chain order book: every order, cancel and fill is a public event that names its owner. Many of its books are thin. On October 9 our read-only check found the official AUSD/USDC market with no resting orders. AUSD already swaps through Monad's AMMs; what's missing is an order book that traders and market makers can use with limit orders.
+Kuru is Monad's on-chain order book: every order, cancel and fill is a public event that names its owner. Many of its books are thin. On October 11 our read-only check found the official AUSD/USDC market with no resting orders. AUSD already swaps through Monad's AMMs; what's missing is an order book that traders and market makers can use with limit orders.
 
 Projects that want depth, such as stablecoin issuers, the exchange and the chain's foundation, pay for it in two ways today:
 
@@ -90,4 +90,4 @@ A 3–5% take on campaign budgets, the same order of magnitude as incentive plat
 
 ## Team
 
-[Names, roles, contact]
+Parth Singh, Amandeep Kaushik, Aashna Tyagi and Bence Szilagyi. Contact: github.com/Ps23102004.

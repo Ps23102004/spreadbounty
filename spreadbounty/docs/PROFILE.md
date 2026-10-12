@@ -45,7 +45,7 @@ Kuru, Monad's native order book, emits an event for every order, cancel and fill
 | Code | https://github.com/Ps23102004/spreadbounty |
 | Write-up | https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/WRITEUP.md |
 | Judge FAQ | https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/FAQ.md |
-| Demo video | [unlisted video link] |
+| Demo video | https://github.com/Ps23102004/spreadbounty/blob/main/spreadbounty/docs/media/spreadbounty-demo-2m.mp4 |
 | Deck | [deck share link; set sharing first] |
 | Live demo | None hosted. It runs locally with `cd spreadbounty && npm install && npm start`. Say so rather than leaving the field empty. |
 | Kuru market used | AUSD/USDC `0x8cF49e35D73B19433FF4d4421637AABB680dc9Cc` (Monad mainnet, read-only so far) |
@@ -73,11 +73,14 @@ Upload in this order. Every caption names its data source, because the app shots
 
 | Name | Role | Contact |
 |---|---|---|
-| [Name] | [Role] | [Contact] |
+| Parth Singh | Team member | github.com/Ps23102004 |
+| Amandeep Kaushik | Team member | via Parth Singh |
+| Aashna Tyagi | Team member | via Parth Singh |
+| Bence Szilagyi | Team member | via Parth Singh |
 
 ## Story fields (if the form asks for them)
 
-**Inspiration.** Kuru's AUSD/USDC book had no resting orders when we checked it on mainnet on October 9. Sponsors who want depth today either sign private market-maker deals they can't audit or fund AMM incentives that don't reward tight quotes. Polymarket already pays makers this way, but scores them off-chain. On an on-chain order book, the scoring can be public. [350]
+**Inspiration.** Kuru's AUSD/USDC book had no resting orders when we checked it on mainnet on October 11. Sponsors who want depth today either sign private market-maker deals they can't audit or fund AMM incentives that don't reward tight quotes. Polymarket already pays makers this way, but scores them off-chain. On an on-chain order book, the scoring can be public. [350]
 
 **What it does.** A sponsor funds a campaign on one Kuru book: a band, a budget and an epoch length. Any maker earns by resting bids and asks inside the band; flickering quotes earn nothing. Each epoch publishes samples, scores, payouts and one Merkle root. Anyone can recompute it in a browser, and makers claim from the 1inch distributor the sponsor funds. [340]
 

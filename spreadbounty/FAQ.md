@@ -18,7 +18,7 @@ Only the distributor's owner: the unmodified 1inch `CumulativeMerkleDrop` lets i
 - *Limit:* a block producer could in principle bias which block gets sampled. We haven't measured that.
 
 **4. Liquid books already have pros quoting at 4–12 bps. Won't rewards just go to them?**
-On majors, largely yes. A third-party Kuru scan (a market-making retrospective, Sep–Oct 2026) put MON/USDC at 12.4 bps, with its fastest maker updating 288 times a minute. We start on thin books instead: the official AUSD/USDC market had no resting orders when we checked on Oct 9. The 20-block rest rule rewards orders that stay put, not requote speed.
+On majors, largely yes. A third-party Kuru scan (a market-making retrospective, Sep–Oct 2026) put MON/USDC at 12.4 bps, with its fastest maker updating 288 times a minute. We start on thin books instead: the official AUSD/USDC market had no resting orders when we checked on Oct 11. The 20-block rest rule rewards orders that stay put, not requote speed.
 
 **5. Why would a sponsor pay?**
 Sponsors already pay for depth, through market-maker retainers and incentive programs, and can't check what they got. This makes that spend checkable. We have no signed sponsor; the ask is a one-week pilot.
