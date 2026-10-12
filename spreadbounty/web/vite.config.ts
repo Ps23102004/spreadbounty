@@ -5,6 +5,6 @@ import { defineConfig } from "vite";
 export default defineConfig({
   root: import.meta.dirname,
   plugins: [react()],
-  server: { port: 5173, proxy: { "/api": "http://localhost:8787" }, fs: { allow: [".."] } },
+  server: { port: 5173, proxy: { "/api": { target: "http://localhost:8787", changeOrigin: false } } // keep the browser's Origin/Host: the server's same-origin check rejects proxied POSTs otherwise, fs: { allow: [".."] } },
   build: { outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 900 },
 });
