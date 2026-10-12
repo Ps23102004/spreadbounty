@@ -31,7 +31,8 @@ import {
 const WEB = join(import.meta.dirname, "../../web/dist");
 const ID = /^[a-z0-9-]{1,80}$/;
 const BOOK_TTL_MS = 15_000;
-const COPILOT_CONCURRENCY = 2;
+/** Expensive work allowed to run at once, server-wide (rate limits are per IP; these bound the total). */
+const CONCURRENCY = { copilot: 2, model: 2 } as const;
 const PER_SPONSOR_PER_DAY = 3;
 const PUBLIC_DEMO_MAX_CAMPAIGNS = 50;
 
@@ -172,7 +173,18 @@ interface Ctx {
   log: (m: string) => void;
   /** The server-side model, or null when it is off (always off on PUBLIC_DEMO unless SERVER_AI=on). */
   llm: () => LLM | null;
-  copilotRunning: { n: number };
+  running: Record<keyof typeof CONCURRENCY, number>;
+}
+
+/** Run `fn` in one of the `kind` slots, or answer 429 when they are all taken. */
+async function exclusive<T>(ctx: Ctx, kind: keyof typeof CONCURRENCY, fn: () => Promise<T>): Promise<T> {
+  if (ctx.running[kind] >= CONCURRENCY[kind]) throw new HttpError(429, "The server is busy with this kind of request. Try again in a few seconds.", { "Retry-After": "5" });
+  ctx.running[kind]++;
+  try {
+    return await fn();
+  } finally {
+    ctx.running[kind]--;
+  }
 }
 
 // ---------------- AI routes (gamma's A6 extension points) ----------------
@@ -183,9 +195,7 @@ export const CopilotIn = z.object({ goal: z.string().min(3).max(1000) });
 async function copilot(req: IncomingMessage, res: ServerResponse, ctx: Ctx) {
   const parsed = CopilotIn.safeParse(await readJsonBody(req));
   if (!parsed.success) return send(res, 400, { error: "Describe the goal in a sentence (3 to 1000 characters)." });
-  if (ctx.copilotRunning.n >= COPILOT_CONCURRENCY) return send(res, 429, { error: "The copilot is busy. Try again in a few seconds." }, { "Retry-After": "5" });
-  ctx.copilotRunning.n++;
-  try {
+  await exclusive(ctx, "copilot", async () => {
     res.writeHead(200, { "content-type": "application/x-ndjson", "cache-control": "no-store" });
     const line = (o: unknown) => res.write(JSON.stringify(o) + "\n");
     try {
@@ -195,9 +205,7 @@ async function copilot(req: IncomingMessage, res: ServerResponse, ctx: Ctx) {
       line({ type: "error", ...internalError(e, ctx.log) });
     }
     res.end();
-  } finally {
-    ctx.copilotRunning.n--;
-  }
+  });
 }
 
 /** POST /api/campaigns/:id/epochs/:n/report. A6 reads `?narrate=none` from `url` here and returns `{ facts, template, root }`. */
@@ -238,6 +246,8 @@ async function campaigns(req: IncomingMessage, res: ServerResponse, url: URL, pa
   const { src } = ctx;
   if (parts.length === 2 && req.method === "GET") return send(res, 200, listCampaigns(src));
   if (parts.length === 2 && req.method === "POST") return send(res, 201, await publish(req, ctx));
+  const isReport = parts[5] === "report" && parts.length === 6;
+  if (isReport ? req.method !== "POST" : req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "Method not allowed." });
   const id = parts[2];
   if (!id || !ID.test(id) || !existsSync(campaignPath(src, id))) return send(res, 404, { error: "No such campaign." });
   if (parts.length === 3) return send(res, 200, readJson(campaignPath(src, id)));
@@ -247,15 +257,15 @@ async function campaigns(req: IncomingMessage, res: ServerResponse, url: URL, pa
       return { n, fromBlock: e.fromBlock, toBlock: e.toBlock, root: e.root, metrics: epochMetrics(e), makersSeen: makersSeen(src, id, n, e), samples: e.samples.map((s) => ({ block: s.block, bidDepth: s.bidDepth, askDepth: s.askDepth, scored: s.scored })) };
     }));
   }
-  if (parts[3] === "drop" && parts.length === 4 && req.method === "GET") {
+  if (parts[3] === "drop" && parts.length === 4) {
     const f = `${src.dir}/${id}/drop.json`;
     return existsSync(f) ? send(res, 200, readJson(f)) : send(res, 404, { error: "No claim contract deployed for this campaign." });
   }
-  if (parts[3] === "bot-sim" && parts.length === 4 && req.method === "GET") {
+  if (parts[3] === "bot-sim" && parts.length === 4) {
     const q = BotSimQuery.safeParse(query(url));
     if (!q.success) return send(res, 400, { error: "Pick a closed epoch and a size per side from 1 to 10,000,000." });
     if (!existsSync(epochPath(src, id, q.data.epoch))) return send(res, 400, { error: "Pick a closed epoch." });
-    return send(res, 200, await botSim(src, id, q.data.epoch, q.data.size));
+    return send(res, 200, await exclusive(ctx, "model", () => botSim(src, id, q.data.epoch, q.data.size)));
   }
   const n = Number(parts[4]);
   if (parts[3] === "epochs" && /^\d{1,7}$/.test(parts[4] ?? "") && existsSync(epochPath(src, id, n))) {
@@ -275,7 +285,7 @@ async function campaigns(req: IncomingMessage, res: ServerResponse, url: URL, pa
       const proof = merkleProof(entries, entry[0], entry[1]);
       return send(res, 200, { account: entry[0], cumulativeAmount: entry[1].toString(), root: e.root, proof, verifies: verifyProof(proof, e.root, leafHash(entry[0], entry[1])) });
     }
-    if (parts[5] === "report" && parts.length === 6 && req.method === "POST") return send(res, 200, await epochReport(url, ctx, id, n, e));
+    if (isReport) return send(res, 200, await exclusive(ctx, "model", () => epochReport(url, ctx, id, n, e)));
   }
   return send(res, 404, { error: "Not found." });
 }
@@ -300,7 +310,7 @@ export function createApp(opts: AppOptions = {}) {
     now,
     log,
     llm: () => (cfg.serverAiOff ? null : getLLM()),
-    copilotRunning: { n: 0 },
+    running: { copilot: 0, model: 0 },
   };
   const { src, auth } = ctx;
   const limiter = new RateLimiter(now);

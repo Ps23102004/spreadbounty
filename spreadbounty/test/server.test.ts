@@ -34,6 +34,7 @@ const src: DataSource = {
     return base.market(m);
   },
   async logs(...a) {
+    if (gate) await gate;
     calls.logs++;
     return base.logs(...a);
   },
@@ -415,6 +416,52 @@ ok("SIWE: Secure cookie and https URI behind a trusted proxy only; X-Forwarded-F
   rmSync(full, { recursive: true, force: true });
 }
 ok("publish: signed-in sponsor -> 201, stored sponsor = session address; 4th in a day -> 429; 50 total on PUBLIC_DEMO -> 429; /api/me roles from public files (sponsorOf, makerIn with epochs and cumulative)");
+
+{
+  // what the Design page does: copilot result -> publish, as a signed-in sponsor
+  const ip = "10.10.1.1";
+  const cookie = await signIn(url, ethers.Wallet.createRandom(), ip);
+  for (const goal of ["Deepen AUSD/USDC within 15 bps for $50 a day", "MON/USDC two-sided, about $700 a week, 30 minute epochs"]) {
+    const stream = await (await fetch(url + "/api/copilot", json({ goal }, ip))).text();
+    const result = JSON.parse(stream.trim().split("\n").pop()!);
+    assert.equal(result.type, "result");
+    const r = await fetch(url + "/api/campaigns", jsonReq({ campaign: result.campaign, rationale: result.brief }, ip, { cookie }));
+    assert.equal(r.status, 201, await r.text());
+  }
+}
+ok("publish: campaigns the copilot designs (AUSD and MON) pass the strict schema");
+
+// ---------- 11. adversarial-pass regressions ----------
+{
+  const ip = "10.11.0.1";
+  // read-only routes refuse writes instead of answering them
+  for (const [method, path] of [["POST", "/api/campaigns/ausd-usdc-demo"], ["DELETE", "/api/campaigns"], ["PUT", "/api/campaigns/ausd-usdc-demo/epochs/0"], ["GET", "/api/campaigns/ausd-usdc-demo/epochs/0/report"]]) {
+    const r = await fetch(url + path, { method, headers: { "content-type": "application/json", "x-forwarded-for": ip }, body: method === "GET" ? undefined : "{}" });
+    assert.equal(r.status, 405, `${method} ${path}`);
+    await r.text();
+  }
+  // bot-sim and reports share two server-wide slots: a third concurrent backtest gets 429, not a third replay
+  let release!: () => void;
+  gate = new Promise((r) => (release = r));
+  const sims = [101, 102].map((size, i) => fetch(`${url}/api/campaigns/ausd-usdc-demo/bot-sim?epoch=2&size=${size}`, from(`10.11.1.${i}`)));
+  await new Promise((r) => setTimeout(r, 100));
+  const third = await fetch(`${url}/api/campaigns/ausd-usdc-demo/bot-sim?epoch=2&size=103`, from("10.11.1.9"));
+  assert.equal(third.status, 429);
+  assert.ok(Number(third.headers.get("retry-after")) > 0);
+  await third.text();
+  gate = null;
+  release();
+  for (const r of await Promise.all(sims)) assert.equal(r.status, 200, await r.text());
+  // deep JSON, prototype keys and a nested goal are plain 400s
+  for (const body of ["[".repeat(8000) + "]".repeat(8000), '{"__proto__":{"admin":true},"goal":"x"}', `{"goal":${"[".repeat(5000)}${"]".repeat(5000)}}`]) {
+    const r = await fetch(url + "/api/copilot", json(body, `10.11.2.${body.length % 200}`));
+    assert.equal(r.status, 400);
+    await r.text();
+  }
+  assert.equal(({} as Record<string, unknown>).admin, undefined, "no prototype pollution");
+  assert.equal((await fetch(url + "/api/config", from(ip))).status, 200, "still up");
+}
+ok("adversarial regressions: writes to read-only routes -> 405; third concurrent backtest -> 429; deep/prototype JSON -> 400, no pollution");
 
 {
   const before = serverLog.length;
