@@ -1,0 +1,21 @@
+{
+  "id": "mon-usdc-shadow-112650356",
+  "chainId": 143,
+  "market": "0x065C9d28E428A0db40191a54d33d5b7c71a9C394",
+  "pair": "MON/USDC",
+  "implementation": "0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0",
+  "pricePrecision": "100000000",
+  "sizePrecision": "10000000000",
+  "refPrice": null,
+  "bandBps": 25,
+  "minRestBlocks": 20,
+  "sampleEvery": 200,
+  "replayFromBlock": 112650356,
+  "epochBlocks": 1200,
+  "budgetPerEpoch": "10000000",
+  "rewardToken": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+  "rewardDecimals": 6,
+  "sponsor": "0x0000000000000000000000000000000000000000",
+  "rationale": "Shadow campaign: real MON/USDC Kuru order logs from Monad mainnet, scored as if a campaign had started at block 112650356: 3 epochs of 1200 blocks, ±25 bps of the maker-book mid, a hypothetical 10 USDC per epoch. Nothing was paid; amounts show what makers would have earned.",
+  "shadow": true
+}

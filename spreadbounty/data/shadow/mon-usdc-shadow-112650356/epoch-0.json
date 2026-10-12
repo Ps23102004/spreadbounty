@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "campaign": {
+    "id": "mon-usdc-shadow-112650356",
+    "chainId": 143,
+    "market": "0x065C9d28E428A0db40191a54d33d5b7c71a9C394",
+    "pair": "MON/USDC",
+    "implementation": "0x5e3446c600524Be453bbCEFD46a9E4C9bE8899a0",
+    "pricePrecision": "100000000",
+    "sizePrecision": "10000000000",
+    "refPrice": null,
+    "bandBps": 25,
+    "minRestBlocks": 20,
+    "sampleEvery": 200,
+    "replayFromBlock": 112650356,
+    "epochBlocks": 1200,
+    "budgetPerEpoch": "10000000",
+    "rewardToken": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+    "rewardDecimals": 6,
+    "sponsor": "0x0000000000000000000000000000000000000000"
+  },
+  "epoch": 0,
+  "fromBlock": 112650356,
+  "toBlock": 112651555,
+  "logCount": 3642,
+  "logsDigest": "0xa977b384a5746d7cb242061fd382146aaa070846db96d2e1ac62f4a32b555a15",
+  "samples": [
+    {
+      "block": 112650359,
+      "closer": 112650555,
+      "closerHash": "0x3873e95c14cd9e217fd3fc731247a521adc2d1e13c264704eb53ed4391a367e3",
+      "mid": null,
+      "bookHash": "0x569e75fc77c1a856f6daaf9e69d8a9566ca34aa47f9133711ce065a571af0cfd",
+      "bidDepth": "0",
+      "askDepth": "0",
+      "scored": 0
+    },
+    {
+      "block": 112650644,
+      "closer": 112650755,
+      "closerHash": "0x90362df628cc5962247b6f89c78287bd282f58c64ddbad9d59d5213c9448fdb0",
+      "mid": "2678200",
+      "bookHash": "0xf7aa96bcaecb7c385193aa642bfa13a538ded2530770d5068ccb628fcb8c7a4c",
+      "bidDepth": "1745830414395367",
+      "askDepth": "1745830414395367",
+      "scored": 1
+    },
+    {
+      "block": 112650794,
+      "closer": 112650955,
+      "closerHash": "0x66aa168d6ff4cbd29b80a5931bcc8d161eb26eb063970d19369528ca96146b3e",
+      "mid": "2678150",
+      "bookHash": "0x417f2529a3bc073dbb338e9ba9cec538d5b54f54c8e73fc3abc3b101240390e5",
+      "bidDepth": "1745848082653517",
+      "askDepth": "1745848082653517",
+      "scored": 1
+    },
+    {
+      "block": 112651041,
+      "closer": 112651155,
+      "closerHash": "0x06b9e2b5000c68b21dc50e81a7cc580bc632c05ebc9e92882114f74480e77f5d",
+      "mid": "2680650",
+      "bookHash": "0xa9c142169342e037af744c6124b3af8c843c05b496a59534db737a45c17ea9ab",
+      "bidDepth": "1744665756908096",
+      "askDepth": "214257198216783",
+      "scored": 1
+    },
+    {
+      "block": 112651263,
+      "closer": 112651355,
+      "closerHash": "0xc558fb5b2c19fe4aab2adbdd71a52c9f326c1d93cfe7fcbd9eceac542f19dc8b",
+      "mid": "2679550",
+      "bookHash": "0xe232fc6c2d68bf69830b30f4ea44a94bee4d4ab238ebb14af73e04794c91af1e",
+      "bidDepth": "1745424223118278",
+      "askDepth": "1745424223118278",
+      "scored": 1
+    },
+    {
+      "block": 112651535,
+      "closer": 112651555,
+      "closerHash": "0xc8188fbc9d480370e8ec10f3e97e9ae7f628c2a93c3f1933daa74d82cbfeba5b",
+      "mid": "2671350",
+      "bookHash": "0x38bbe21063a716ded9387bf3a66198b9ff7adec71cd46743cce885a6c8c71561",
+      "bidDepth": "1747666032635951",
+      "askDepth": "1743748954274255",
+      "scored": 1
+    }
+  ],
+  "scores": [
+    {
+      "account": "0xd0f8a6422ccdd812f29d8fb75cf5fcd41483badc",
+      "score": "602957792119886"
+    }
+  ],
+  "amounts": [
+    {
+      "account": "0xd0f8a6422ccdd812f29d8fb75cf5fcd41483badc",
+      "amount": "10000000"
+    }
+  ],
+  "cumulative": [
+    {
+      "account": "0xd0f8a6422ccdd812f29d8fb75cf5fcd41483badc",
+      "amount": "10000000"
+    }
+  ],
+  "prevRoot": null,
+  "root": "0xeab526e43952a2d437af68317f9f1995f2988127f706bd15798c8cb628bce8df"
+}

@@ -11,6 +11,7 @@ import { SamplingStrip } from "../ui/SamplingStrip";
 /** W/P V: the full recompute. Same `useRecompute` as Start, so both reach the same verdict for the same epoch. */
 export function Verify({ campaign, config }: { campaign: CampaignRow | null; config: Config | null }) {
   const rc = useRecompute(campaign, config);
+  const shadow = !!(campaign as { shadow?: boolean } | null)?.shadow;
   if (!campaign) return <p className="note">No campaign to verify yet. Design and publish one first.</p>;
   const label = <SourceLabel config={config} campaign={campaign} />;
   const sel = rc.epochs?.find((e) => e.n === rc.n) ?? null;
@@ -66,13 +67,13 @@ export function Verify({ campaign, config }: { campaign: CampaignRow | null; con
             <p className={out ? (out.ok ? "ok" : "bad-ink") : "muted"}>
               {out
                 ? out.ok
-                  ? `Every sample, score, payout and the root match. Your browser did the math in ${fmt.n(out.ms)} ms. Makers can claim against this root.`
+                  ? `Every sample, score, payout and the root match. Your browser did the math in ${fmt.n(out.ms)} ms. ${shadow ? "Nothing was paid: this is what these makers would have earned." : "Makers can claim against this root."}`
                   : `${out.forgedWho ? `${makerName(out.forgedWho)} was given 1 extra token. ` : ""}The logs don't support this payout list. Fields that differ: ${out.diffs.join(", ")}.`
                 : "The verdict prints here once the last epoch is rebuilt."}
             </p>
           </div>
           <table className="v-epochs">
-            <thead><tr><th>Epoch</th><th className="r">Samples</th><th className="r">Makers paid</th><th className="r">Paid ({quote})</th><th className="r"><span className="sr-only">Check</span></th></tr></thead>
+            <thead><tr><th>Epoch</th><th className="r">Samples</th><th className="r">{shadow ? "Would earn" : "Makers paid"}</th><th className="r">{shadow ? "Would earn" : "Paid"} ({quote})</th><th className="r"><span className="sr-only">Check</span></th></tr></thead>
             <tbody>
               {(rc.epochs ?? []).filter((e) => rc.n === null || e.n <= rc.n).map((e) => {
                 const c = rc.checks.find((x) => x.epoch === e.n);
@@ -98,8 +99,10 @@ export function Verify({ campaign, config }: { campaign: CampaignRow | null; con
       <Schedule id="V-5" title="What this proves, plainly">
         {rc.demo ? (
           <p className="ink2">This server runs the synthetic demo, so block hashes come from a fixed formula, <code>keccak256("spreadbounty-demo-block-&lt;n&gt;")</code>, computed here. The check is real: the same logs and hashes always give the same root, and the forged copy fails. On Monad the hashes come from the RPC, so nobody can pick convenient sample blocks.</p>
+        ) : rc.logSource === "rpc" ? (
+          <p className="ink2">Your browser fetched the logs itself, straight from the Monad RPC in 100-block chunks (open the Network tab and look for <code>eth_getLogs</code>), and the block hashes come from the same RPC. No file from this server is trusted for the check. {shadow ? "This campaign is a back-dated shadow campaign on real Kuru books: nobody was paid." : ""}</p>
         ) : (
-          <p className="ink2">Logs come from this server's bundle and are checked against the committed digest; block hashes come straight from the RPC you can see in the Network tab. For a fully independent check, run <code>npm run sb -- verify out/{campaign.id}/epoch-{rc.n}.json</code>, which pulls the logs from the chain too.</p>
+          <p className="ink2">Logs come from this server's bundle and are checked against the committed digest; block hashes come straight from the RPC you can see in the Network tab. For a fully independent check, run <code>npm run sb -- verify</code> against the campaign file, which reads the chain only.</p>
         )}
       </Schedule>
     </>

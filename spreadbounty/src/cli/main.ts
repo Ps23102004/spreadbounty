@@ -6,10 +6,12 @@
  *   npm run sb -- epoch out/campaign-X.json <n>          build epoch n from chain logs -> out/X/epoch-n.json (+ logs bundle)
  *   npm run sb -- verify out/X/epoch-n.json [--bundle]   recompute from chain (or the bundled logs) and compare
  *   npm run sb -- report out/X/epoch-n.json              AI: sponsor report from the verified numbers
+ *   npm run sb -- shadow MON/USDC [--epochs 3] [--epoch-blocks 1200] [--head N]   back-dated campaign on real logs, nothing paid
  */
 import "dotenv/config";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { buildEpoch, epochMetrics, epochRange, verifyEpoch, type Campaign, type EpochFile } from "../core/epoch";
+import { CHAIN_ID, DEFAULT_RPC, USDC } from "../core/chain";
 import { blockHashes, fetchBookLogs, provider, readMarket } from "../core/fetch";
 import type { RawLog } from "../core/rpc";
 
@@ -70,7 +72,8 @@ async function main() {
     }
     case "verify": {
       const f = readJson<EpochFile>(args[0]!);
-      const prev = f.epoch > 0 ? readJson<EpochFile>(epochPath(f.campaign, f.epoch - 1)) : null;
+      // the previous epoch sits next to this one (out/X/ or data/shadow/X/)
+      const prev = f.epoch > 0 ? readJson<EpochFile>(args[0]!.replace(/epoch-\d+\.json$/, `epoch-${f.epoch - 1}.json`)) : null;
       const p = provider();
       const bundle = args[0]!.replace(".json", ".logs.json");
       const logs: RawLog[] =
@@ -81,6 +84,64 @@ async function main() {
       const v = await verifyEpoch(f, logs, blockHashes(p), prev);
       console.log(v.ok ? `VERIFIED epoch ${f.epoch}: root ${f.root} recomputed from ${logs.length} logs` : `MISMATCH:\n  ${v.diffs.join("\n  ")}`);
       process.exitCode = v.ok ? 0 : 1;
+      break;
+    }
+    case "shadow": {
+      // B1: a campaign back-dated onto the real book, scored from mainnet logs. Read-only RPC: no keys, nothing signed or paid.
+      const pair = args[0] && !args[0].startsWith("--") ? args[0] : "MON/USDC";
+      const int = (name: string, def: number) => {
+        const v = Number(flag(name) ?? def);
+        if (!Number.isSafeInteger(v) || v < 1) throw new Error(`${name} must be a positive whole number`);
+        return v;
+      };
+      const epochs = int("--epochs", 3), epochBlocks = int("--epoch-blocks", 1200);
+      const p = provider();
+      const m = await readMarket(p, pair);
+      const head = flag("--head") ? int("--head", 0) : await p.getBlockNumber();
+      const from = head - epochs * epochBlocks - 10; // 10 blocks short of the head, so every log is final
+      const to = from + epochs * epochBlocks - 1;
+      const c: Campaign = {
+        id: `${m.pair.replace("/", "-").toLowerCase()}-shadow-${from}`,
+        chainId: CHAIN_ID,
+        market: m.market,
+        pair: m.pair,
+        implementation: m.implementation,
+        pricePrecision: m.pricePrecision,
+        sizePrecision: m.sizePrecision,
+        refPrice: null, // maker-book mid
+        bandBps: 25, // the copilot's default band for a volatile pair
+        minRestBlocks: 20,
+        sampleEvery: 200,
+        replayFromBlock: from,
+        epochBlocks,
+        budgetPerEpoch: "10000000", // a hypothetical 10 USDC per epoch, as in the demo campaign; nothing is paid
+        rewardToken: USDC,
+        rewardDecimals: 6,
+        sponsor: "0x0000000000000000000000000000000000000000",
+      };
+      const dir = process.env.DATA_DIR ?? "data/shadow"; // serve it with DATA_SOURCE=live DATA_DIR=data/shadow
+      console.log(`head block used: ${head} (rerun with --head ${head} for the same files)`);
+      console.log(`fetching ${m.pair} book logs ${from}..${to} from ${process.env.RPC_URL ?? DEFAULT_RPC} (read-only, 100-block requests)`);
+      const logs = await fetchBookLogs(p, c.market, from, to);
+      console.log(`fetched ${logs.length} logs`);
+      mkdirSync(`${dir}/${c.id}`, { recursive: true });
+      const rationale = `Shadow campaign: real ${m.pair} Kuru order logs from Monad mainnet, scored as if a campaign had started at block ${from}: ${epochs} epochs of ${epochBlocks} blocks, ±${c.bandBps} bps of the maker-book mid, a hypothetical 10 USDC per epoch. Nothing was paid; amounts show what makers would have earned.`;
+      writeFileSync(`${dir}/campaign-${c.id}.json`, JSON.stringify({ ...c, rationale, shadow: true }, null, 2));
+      const hash = blockHashes(p);
+      let prev: EpochFile | null = null;
+      for (let n = 0; n < epochs; n++) {
+        const e = await buildEpoch(c, n, logs, hash, prev);
+        const path = `${dir}/${c.id}/epoch-${n}.json`;
+        writeFileSync(path, JSON.stringify(e, null, 2));
+        writeFileSync(path.replace(".json", ".logs.json"), JSON.stringify(logs.filter((l) => l.blockNumber <= e.toBlock)));
+        const x = epochMetrics(e);
+        console.log(`epoch ${n} (${x.blocks}): ${e.logCount} logs since block ${from}, ${x.samples} samples, two-sided ${x.twoSidedCoveragePct.toFixed(0)}%, ${x.makersPaid} makers would have earned ${x.paidRewardTokens} USDC, root ${e.root}`);
+        prev = e;
+      }
+      console.log(`would have earned, cumulative over ${epochs} epochs (nothing was paid):`);
+      for (const a of [...prev!.cumulative].sort((x, y) => (BigInt(y.amount) > BigInt(x.amount) ? 1 : -1)))
+        console.log(`  ${a.account}  ${(Number(a.amount) / 1e6).toFixed(6)} USDC`);
+      console.log(`wrote ${dir}/campaign-${c.id}.json and ${dir}/${c.id}/epoch-0..${epochs - 1}.json; check: npm run sb -- verify ${dir}/${c.id}/epoch-${epochs - 1}.json`);
       break;
     }
     case "report": {
