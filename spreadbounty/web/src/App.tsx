@@ -83,18 +83,20 @@ export function App() {
 
   // a new page starts at its top, and its heading takes focus once it has entered (not on the first load: the skip link comes first)
   const arrived = useRef(false);
-  const headingDue = useRef(false);
   useEffect(() => {
     if (!arrived.current) { arrived.current = true; return; }
-    headingDue.current = true;
     window.scrollTo(0, 0);
+    // focus the new page's heading as soon as it has mounted (the old route must leave first)
+    let tries = 0;
+    const t = setInterval(() => {
+      const h = document.querySelector<HTMLElement>(`#content [data-page="${page}"] h1`);
+      if (h || ++tries > 50) {
+        clearInterval(t);
+        if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+      }
+    }, 100);
+    return () => clearInterval(t);
   }, [page]);
-  const focusHeading = () => {
-    if (!headingDue.current) return;
-    headingDue.current = false;
-    const h = document.querySelector<HTMLElement>("#content h1");
-    if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
-  };
 
   const campaign = campaigns?.find((c) => c.id === campaignId) ?? null;
   const status = campaigns ? "ready" : error ? "error" : "loading";
@@ -149,10 +151,10 @@ export function App() {
           <motion.div
             key={page}
             className="route"
+            data-page={page}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.32, ease: EASE_ENTER } }}
             exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_EXIT } }}
-            onAnimationComplete={focusHeading}
           >
             {page === "start" && <Start campaign={campaign} config={config} status={status} />}
             {page === "overview" && <Overview key={campaign?.id ?? "none"} campaign={campaign} campaigns={campaigns ?? []} status={status} onPick={setCampaignId} config={config} onRetry={load} />}
