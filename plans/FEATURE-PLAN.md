@@ -44,7 +44,7 @@ Order: A0 first (15 min). Then alpha A1 to A3, beta A4 then A5-server, and gamma
 ### A0. Baseline and guardrails (0.25 h, any lane)
 - Goal: lock today's numbers so regressions show up.
 - Files: `test/boundary.test.ts` (new), `package.json` (`test:boundary`, added to `test:all`).
-- Steps: record `test:all` (32 pass), typecheck, build, JS bundle size (680 KB today) in the PR description.
+- Steps: record `test:all` (32 pass when this plan was written; 94 pass at 388df15), typecheck, build, JS bundle size (680 KB today) in the PR description.
 - Acceptance:
   - `test/boundary.test.ts` fails if any file under `src/core`, `src/drop`, `src/bot` imports `src/ai` or anything under `web/`.
   - It fails if `web/src` contains `dangerouslySetInnerHTML`.
