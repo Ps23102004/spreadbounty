@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { leafHash, verifyProof } from "../../../src/core/score";
 import { api, fmt, makerName, type CampaignRow, type Claim as ClaimData, type Config, type DropRecord, type EpochFile } from "../api";
+import { short, useSession } from "../ui/AccountDialog";
 import { Copy } from "../ui/bits";
 import { MarketTabs, PageHead } from "../ui/Schedule";
 import { SourceLabel } from "../ui/SourceLabel";
@@ -29,6 +30,8 @@ export function Claim({ campaign, config }: { campaign: CampaignRow | null; conf
   const [claim, setClaim] = useState<ClaimData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [checked, setChecked] = useState<boolean | null>(null);
+  const session = useSession();
+  const mine = session.address ?? session.persona?.address ?? null;
 
   useEffect(() => {
     if (!campaign) return;
@@ -108,6 +111,11 @@ export function Claim({ campaign, config }: { campaign: CampaignRow | null; conf
           <input id="addr" type="text" className="mono" value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="0x…" spellCheck={false} />
           <button className="btn" onClick={() => lookup()}>Look up</button>
         </div>
+        {mine && (
+          <button className="btn ghost small" style={{ justifySelf: "start" }} onClick={() => { setAddr(mine); lookup(mine); }}>
+            {session.address ? `Use my connected address (${short(mine)})` : `Use ${session.persona!.name} (demo persona)`}
+          </button>
+        )}
         {latest && (
           <div className="examples">
             {latest.cumulative.map((c) => (

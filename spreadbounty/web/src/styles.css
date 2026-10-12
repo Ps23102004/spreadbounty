@@ -557,3 +557,27 @@ main, .route, .page-head { grid-template-columns: minmax(0, 1fr); }
 .book-sheet .ladder td { height: 26px; }
 .route:has(> .start) { gap: var(--s-4); }
 @media (max-width: 560px) { .sch-corner { flex-wrap: wrap; } .stamp { white-space: normal; } }
+
+/* ---------- account dialog (A5) ---------- */
+p.small, span.small, .small { font-size: var(--t-sm); }
+.acct-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.acct-steps > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: var(--s-3); padding: var(--s-3) 0; border-bottom: 1px solid var(--rule); color: var(--muted); }
+.acct-steps > li:first-child { padding-top: 0; }
+.acct-steps > li.on, .acct-steps > li.done { color: var(--ink); }
+.acct-n { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--edge); font-family: var(--mono); font-size: var(--t-xs); }
+.acct-steps > li.on .acct-n { background: var(--ink); color: var(--on-dark); border-color: var(--ink); }
+.acct-body { display: grid; gap: var(--s-2); min-width: 0; }
+.acct-body h3 { font-size: var(--t-sm); font-stretch: 75%; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.wallets { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.wallets .btn { text-transform: none; letter-spacing: 0; font-stretch: 100%; }
+.wallets img { border-radius: 2px; }
+.siwe {
+  margin: 0; padding: var(--s-3) var(--s-4); background: var(--tape); border: 1px solid var(--rule); border-top: 3px double var(--edge);
+  font-family: var(--mono); font-size: var(--t-xs); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto;
+}
+.acct-addr { display: inline-flex; gap: 6px; align-items: center; overflow-wrap: anywhere; font-size: var(--t-xs); }
+.roles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.roles li { display: inline-flex; border: 1px solid var(--edge); background: var(--sheet); font-size: var(--t-xs); }
+.roles .k { padding: 4px 8px; border-right: 1px solid var(--edge); color: var(--muted); font-stretch: 75%; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+.roles .v { padding: 4px 9px; color: var(--ink); }
+.chip.persona { border-style: dashed; }

@@ -114,7 +114,7 @@ export function App() {
             {label}
             <WriterChip config={config} />
             <RoleChip session={session} />
-            <WalletButton session={session} />
+            <WalletButton session={session} config={config} />
             <span className="theme-top">{themeBtn}</span>
           </div>
         </div>

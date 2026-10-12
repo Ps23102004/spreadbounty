@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { api, fmt, type Config, type DesignResult, type Step } from "../api";
+import { openAccount, refreshSession, short, useSession } from "../ui/AccountDialog";
 import { Provenance, Steps, type StepState } from "../ui/bits";
 import { PageHead } from "../ui/Schedule";
 import { Bars, ViewToggle } from "../ui/charts";
@@ -29,6 +30,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
   const [pubErr, setPubErr] = useState<string | null>(null);
   const [table, setTable] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const session = useSession();
 
   const run = async () => {
     abort.current?.abort();
@@ -56,6 +58,7 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
       onPublished(p.id);
     } catch (e: any) {
       setPubErr(String(e?.message ?? e));
+      refreshSession(); // a 401 here means the session expired on the server
     }
   };
 
@@ -111,9 +114,16 @@ export function Design({ config, onPublished }: { config: Config; onPublished: (
                 <Provenance by={r.ai.briefBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} />
                 <span className="muted" style={{ fontSize: "0.8rem" }}>Request read by {r.ai.intentBy === "model" ? r.ai.model : "rules"}; explicit numbers in your sentence always win over the model's reading.</span>
                 <div className="row">
-                  <button className="btn" onClick={publish} disabled={!!published}>{published ? "Published" : "Publish campaign"}</button>
+                  {session.address
+                    ? <button className="btn" onClick={publish} disabled={!!published}>{published ? "Published" : `Publish under ${short(session.address)}`}</button>
+                    : <button className="btn" onClick={openAccount}>Sign in to publish</button>}
                   {published && <a className="btn ghost" href="#overview">Open overview</a>}
                 </div>
+                <p className="muted small">{session.address
+                  ? "Publishes this campaign file on this server under your address. Funding happens when you deploy the distributor from the CLI."
+                  : session.persona
+                    ? "Demo personas are read-only. Sign in with a wallet to publish."
+                    : "Publishing writes this campaign file under your wallet address, so it needs a signed-in wallet."}</p>
                 {published && <p className="note">Saved as <code>{published.path}</code>. Epoch 0 starts at block {fmt.n(r.campaign.replayFromBlock)}; makers see the rules before any order counts.</p>}
                 {pubErr && <p className="note bad">{pubErr}</p>}
               </section>
