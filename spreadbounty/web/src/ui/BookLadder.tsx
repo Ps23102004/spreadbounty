@@ -22,7 +22,12 @@ export function BookLadder({ campaign, depth = 99, probe = true, onBook }: { cam
   const base = campaign.pair.split("/")[0]!;
   const levels = book ? Math.min(depth, book.asks.length) + Math.min(depth, book.bids.length) + 1 : Math.min(depth, 5) * 2 + 1;
   if (err) return <ErrorNote onRetry={load}>Couldn't read the {campaign.pair} book: {err}</ErrorNote>;
-  if (!book) return <Skeleton rows={levels + 1} h={28} />;
+  if (!book) return (
+    <div>
+      <p className="note" role="status" aria-live="polite"><span className="spinner" aria-hidden /> Reading the {campaign.pair} book from the server. The first load can take about 5 seconds.</p>
+      <Skeleton rows={levels + 1} h={28} />
+    </div>
+  );
   if (!book.bids.length && !book.asks.length) return <p className="note">No resting orders on {book.pair} in the last {book.windowHours} h of logs, up to block {fmt.n(book.head)}.</p>;
   const mid = book.refPrice ?? (book.bids[0] && book.asks[0] ? (book.bids[0].price + book.asks[0].price) / 2 : null);
   return (

@@ -32,7 +32,8 @@ import {
 
 const WEB = join(import.meta.dirname, "../../web/dist");
 const ID = /^[a-z0-9-]{1,80}$/;
-const BOOK_TTL_MS = 15_000;
+// demo data is free to recompute; live data costs RPC calls, so one shared book is kept longer
+const BOOK_TTL_MS = process.env.DATA_SOURCE === "live" ? 60_000 : 15_000;
 /** Expensive work allowed to run at once, server-wide (rate limits are per IP; these bound the total). */
 const CONCURRENCY = { copilot: 2, model: 2 } as const;
 const PER_SPONSOR_PER_DAY = 3;
