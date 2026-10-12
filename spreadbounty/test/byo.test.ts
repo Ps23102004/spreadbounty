@@ -302,6 +302,8 @@ const use = (provider: "none" | "anthropic" | "openai" | "local", model: string,
   assert.equal(writerLabel({ provider: "anthropic", model: "claude-opus-5-5", baseUrl: "", remember: false }, null, null), "Writer: Claude (browser)");
   assert.equal(writerLabel({ provider: "none", model: "", baseUrl: "", remember: false }), "Writer: none · Judge: Jev (this server)"); // default judge, shown on Design B-1
   assert.equal(writerLabel({ provider: "none", model: "", baseUrl: "", remember: false }, null, "none"), "Writer: none");
+  assert.equal(writerLabel({ provider: "none", model: "", baseUrl: "", remember: false }, null, "server", false), "Writer: none", "no server key: no judge ran, so none is named");
+  assert.equal(writerLabel({ provider: "none", model: "", baseUrl: "", remember: false }, null, "key", false), "Writer: none · Judge: Jev (your key)", "the browser's own key still counts");
   ok("keys: sessionStorage by default, localStorage only with Remember, Forget clears both stores");
 }
 

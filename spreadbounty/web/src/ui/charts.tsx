@@ -56,10 +56,12 @@ export function DepthChart({ points, unit, height = 240 }: { points: DepthPoint[
     const top = yt[yt.length - 1]!;
     return { x0, x1, yt, x: (b: number) => L + ((b - x0) / Math.max(1, x1 - x0)) * (W - L - R), y: (v: number) => T0 + (1 - v / top) * (H - T0 - B) };
   }, [points, H, W]);
-  const path = (k: "bid" | "ask") => points.map((p, i) => `${i ? "L" : "M"}${x(p.block).toFixed(1)},${y(p[k]).toFixed(1)}`).join("");
+  const epochs = [...new Set(points.map((p) => p.epoch))];
+  // depth is sampled per epoch and is not a continuous series across the boundary: draw each epoch on its own
+  const path = (k: "bid" | "ask", e: number) => points.filter((p) => p.epoch === e).map((p, i) => `${i ? "L" : "M"}${x(p.block).toFixed(1)},${y(p[k]).toFixed(1)}`).join("");
+  const sparse = points.length <= 36; // few samples: show each one
   const dividers = points.filter((p, i) => i > 0 && p.epoch !== points[i - 1]!.epoch);
   const firstOf = (e: number) => points.find((p) => p.epoch === e)!;
-  const epochs = [...new Set(points.map((p) => p.epoch))];
 
   const onMove = (ev: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect();
@@ -84,8 +86,18 @@ export function DepthChart({ points, unit, height = 240 }: { points: DepthPoint[
           <text x={W - R} y={H - 6} textAnchor="end">block {fmt.n(x1)}</text>
         </g>
         {dividers.map((p) => <line key={p.block} x1={x(p.block) - 2} x2={x(p.block) - 2} y1={T0 - 18} y2={H - B} stroke="var(--edge)" strokeDasharray="3 3" />)}
-        <motion.path key={`b${points.length}`} {...draw} d={path("bid")} fill="none" stroke="var(--bid)" strokeWidth={2} strokeLinejoin="round" />
-        <motion.path key={`a${points.length}`} {...draw} d={path("ask")} fill="none" stroke="var(--ask)" strokeWidth={2} strokeLinejoin="round" />
+        {epochs.map((e) => (
+          <g key={e}>
+            <motion.path key={`b${points.length}`} {...draw} d={path("bid", e)} fill="none" stroke="var(--bid)" strokeWidth={2} strokeLinejoin="round" />
+            <motion.path key={`a${points.length}`} {...draw} d={path("ask", e)} fill="none" stroke="var(--ask)" strokeWidth={2} strokeLinejoin="round" />
+          </g>
+        ))}
+        {sparse && points.map((p) => (
+          <g key={p.block} aria-hidden>
+            <circle cx={x(p.block)} cy={y(p.bid)} r={2.5} fill="var(--bid)" />
+            <circle cx={x(p.block)} cy={y(p.ask)} r={2.5} fill="var(--ask)" />
+          </g>
+        ))}
         {hp && (
           <g>
             <line x1={x(hp.block)} x2={x(hp.block)} y1={T0} y2={H - B} stroke="var(--muted)" strokeWidth={1} />

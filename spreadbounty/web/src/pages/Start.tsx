@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fmt, makerName, type Book, type CampaignRow, type Config } from "../api";
 import { BookLadder } from "../ui/BookLadder";
 import { HashDiff } from "../ui/HashDiff";
@@ -90,6 +90,12 @@ function Verdict({ outcome }: { outcome: Outcome | null }) {
 }
 
 function RootLine({ outcome, root, n }: { outcome: Outcome | null; root: string | null; n: number | null }) {
+  // on a phone the stamp lands below the fold: bring the verdict into view once it exists
+  useEffect(() => {
+    if (!outcome || innerWidth >= 880) return;
+    const t = requestAnimationFrame(() => document.querySelector(".on-root")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" }));
+    return () => cancelAnimationFrame(t);
+  }, [outcome]);
   return (
     <div className="rootline">
       <div className="roots">

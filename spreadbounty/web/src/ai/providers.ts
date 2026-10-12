@@ -79,8 +79,9 @@ const JUDGE_SHORT: Record<JudgeMode, string> = { none: "none", server: "Jev (thi
  * "Writer: none", "Writer: gemma4 (browser)", "Writer: Claude (browser)", plus " · Judge: Jev (this server)" for the
  * chosen judge (B-1 and A-5 lines). The header chip passes `judge: null` and stays short.
  */
-export function writerLabel(s: ModelSettings, serverModel: string | null = null, judge: JudgeMode | null = getJudgeMode()) {
-  const j = judge && judge !== "none" ? ` · Judge: ${JUDGE_SHORT[judge]}` : "";
+export function writerLabel(s: ModelSettings, serverModel: string | null = null, judge: JudgeMode | null = getJudgeMode(), serverJudge = true) {
+  // "Jev on this server" only counts when the server holds a key: with none, no judge runs
+  const j = judge && judge !== "none" && (judge !== "server" || serverJudge) ? ` · Judge: ${JUDGE_SHORT[judge]}` : "";
   if (s.provider === "none") return `Writer: none${j}`;
   if (s.provider === "server") return `Writer: ${serverModel ?? "this server"} (server)${j}`;
   const m = s.model.trim();

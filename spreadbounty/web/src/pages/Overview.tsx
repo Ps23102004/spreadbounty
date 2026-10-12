@@ -313,7 +313,7 @@ function ReportCard({ campaignId, n, config }: { campaignId: string; n: number; 
   }, [key]);
   const unsupported = (r as (WriterReport & { judge?: { unsupported?: { sentence: string }[] } }) | null)?.judge?.unsupported ?? [];
   return (
-    <Schedule id="A-5" title="Epoch report" desc={`What epoch ${n} bought, in words. ${writerLabel(writer, config?.ai.model ?? null)}.`}
+    <Schedule id="A-5" title="Epoch report" desc={`What epoch ${n} bought, in words. ${writerLabel(writer, config?.ai.model ?? null, undefined, config?.judge !== false)}.`}
       aside={<button className="btn ghost small" onClick={run} disabled={busy}>{busy ? "Writing…" : "Rewrite"}</button>}>
       {busy && !r && <Skeleton rows={6} h={28} />}
       {err && <ErrorNote onRetry={run}>{err}</ErrorNote>}

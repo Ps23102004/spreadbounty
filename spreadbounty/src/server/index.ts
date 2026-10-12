@@ -390,6 +390,7 @@ export function createApp(opts: AppOptions = {}) {
         rpcUrl: src.kind === "live" ? env.RPC_URL ?? DEFAULT_RPC : null,
         ai: { provider, model: provider === "claude" ? ai.claudeModel : provider === "local" ? ai.localModel : null, endpoint: provider === "local" ? ai.localUrl : null },
         pairs: PAIRS,
+        judge: !!env.TYPESAFE_API_KEY, // whether /api/judge can answer without a browser key
       });
     }
     if (p === "/api/ai/health" && method === "GET") {

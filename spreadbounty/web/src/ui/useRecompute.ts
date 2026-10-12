@@ -71,8 +71,9 @@ export async function recompute(
     prev = f;
   }
   const target = fs[fs.length - 1]!;
+  const at = (last && fs.find((f) => f.epoch === last.recomputed.epoch)) || target; // the epoch that stopped the run, else the last
   return {
-    ok: !!last?.ok && last.recomputed.epoch === target.epoch, epoch: target.epoch, committed: target.root, recomputed: last?.recomputed.root ?? "",
+    ok: !!last?.ok && last.recomputed.epoch === target.epoch, epoch: at.epoch, committed: at.root, recomputed: last?.recomputed.root ?? "",
     diffs: last?.diffs.map((d) => d.split(":")[0]!) ?? [], forgedWho, checks, ms: Math.round(checks.reduce((s, c) => s + c.ms, 0)),
   };
 }
@@ -198,8 +199,11 @@ export function useRecompute(campaign: CampaignRow | null, config: Config | null
         await push({ id: "root", fig: fmt.short(out.recomputed), text: `root · epoch ${out.epoch}`, sym: "*" });
         if (!forged) passed.set(campaign.id, out);
       } else {
-        await push({ id: "committed", fig: fmt.short(out.committed), text: `committed root · epoch ${out.epoch}`, sym: "#", red: true });
-        await push({ id: "root", fig: fmt.short(out.recomputed), text: `recomputed root · differs`, sym: "≠", red: true });
+        const same = out.committed === out.recomputed; // e.g. a changed payout list or terms with the root left alone
+        await push({ id: "committed", fig: fmt.short(out.committed), text: `committed root · epoch ${out.epoch}`, sym: "#", red: !same });
+        await push(same
+          ? { id: "root", fig: fmt.short(out.recomputed), text: `recomputed root · same; the mismatch is in ${out.diffs.join(", ")}`, sym: "#" }
+          : { id: "root", fig: fmt.short(out.recomputed), text: `recomputed root · differs`, sym: "≠", red: true });
       }
       if (id === runId.current) setOutcome(out);
     } catch (e: any) {

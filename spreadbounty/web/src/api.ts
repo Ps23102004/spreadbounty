@@ -9,6 +9,7 @@ export interface Config {
   rpcUrl: string | null;
   ai: { provider: "claude" | "local" | "off"; model: string | null; endpoint: string | null };
   pairs: string[];
+  judge?: boolean; // this server holds a decision-model key
 }
 export interface Metrics {
   pair: string; epoch: number; blocks: string; samples: number; samplesWithPrice: number;

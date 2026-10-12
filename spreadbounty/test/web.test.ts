@@ -89,6 +89,8 @@ const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
   const r1 = await recompute(raised, logs, hash, false, undefined, published);
   assert.equal(r1.ok, false, "a tampered amounts list must not verify");
   assert.ok(r1.diffs.includes("amounts"), `fields that differ: ${r1.diffs.join(", ")}`);
+  assert.equal(r1.epoch, 2, "the outcome names the epoch that failed");
+  assert.equal(r1.committed, r1.recomputed, "roots are equal when only the payout list changed, so the tape must not say the roots differ");
 
   // 2. campaign terms rewritten inside every epoch file, rebuilt with the production builder so each file is self-consistent
   const rich = { ...files[0]!.campaign, budgetPerEpoch: (BigInt(files[0]!.campaign.budgetPerEpoch) * 2n).toString(), bandBps: 40 };
@@ -98,6 +100,7 @@ const ok = (m: string) => { n++; console.log(`  ok  ${m}`); };
   const r2 = await recompute(rebuilt, logs, hash, false, undefined, published);
   assert.equal(r2.ok, false, "a rewritten budget and band must not verify against the published campaign");
   assert.ok(r2.diffs.includes("campaign.budgetPerEpoch") && r2.diffs.includes("campaign.bandBps"), `fields that differ: ${r2.diffs.join(", ")}`);
+  assert.equal(r2.epoch, 0, "the first epoch whose terms differ stops the run, and the roots shown are that epoch's");
 
   // 3. a rule dropped from the files (the rebuilt files score without it): a missing field is a difference, not a match
   const lacking = { ...files[0]!.campaign } as Record<string, unknown>;

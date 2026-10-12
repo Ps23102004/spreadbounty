@@ -134,7 +134,7 @@ export function Design({ config, onPublished }: { config: Config | null; onPubli
       </section>
 
       <Schedule id="B-1" title={<label htmlFor="goal">What should the campaign do?</label>}
-        footer={<><span>{writerLabel(writer, config?.ai.model ?? null)}</span><span>Rules win on any number you write out</span></>}>
+        footer={<><span>{writerLabel(writer, config?.ai.model ?? null, undefined, config?.judge !== false)}</span><span>Rules win on any number you write out</span></>}>
         <textarea id="goal" value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={1000} rows={2}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); }} />
         <div className="request-row">
