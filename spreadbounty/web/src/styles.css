@@ -581,3 +581,40 @@ p.small, span.small, .small { font-size: var(--t-sm); }
 .roles .k { padding: 4px 8px; border-right: 1px solid var(--edge); color: var(--muted); font-stretch: 75%; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
 .roles .v { padding: 4px 9px; color: var(--ink); }
 .chip.persona { border-style: dashed; }
+
+/* ---------- margin notes: pencil leader + italic note (3.9) ---------- */
+.margin-note { display: grid; grid-template-columns: 28px auto minmax(0, 1fr); align-items: baseline; gap: 0 var(--s-2); font-style: italic; font-size: var(--t-sm); line-height: 1.45; color: var(--ink-2); max-width: 72ch; }
+.margin-note.red { color: var(--red); }
+.margin-note .leader { align-self: center; height: 0; border-top: 1px solid currentColor; position: relative; opacity: 0.8; }
+.margin-note .leader::before { content: ""; position: absolute; left: -2px; top: -3.5px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.margin-note .mn-label { font-style: normal; font-size: var(--t-xs); font-stretch: 75%; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.margin-note .mn-label:empty { display: none; }
+.margin-note:not(:has(.mn-label)) { grid-template-columns: 28px minmax(0, 1fr); }
+
+/* ---------- boxed terms: settings as filled-in form fields ---------- */
+.terms { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--edge); width: fit-content; max-width: 100%; background: var(--sheet); }
+.terms li { display: inline-flex; align-items: stretch; border-right: 1px solid var(--edge); min-height: 34px; }
+.terms li:last-child { border-right: 0; }
+.terms .k { display: flex; align-items: center; padding: 0 8px; border-right: 1px solid var(--rule); color: var(--muted); font-size: var(--t-xs); font-stretch: 75%; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+.terms .v { display: flex; align-items: center; padding: 0 10px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- W/P B: design ---------- */
+.request-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-4); }
+.request-row .btn { flex: none; }
+.examples button[aria-pressed="true"] { border-color: var(--edge); color: var(--ink); background: var(--sheet); }
+.design-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--s-5); align-items: start; }
+.tape.wrap li { height: auto; min-height: var(--tape-line); line-height: 1.45; padding: 4px 0; align-items: start; }
+.tape.wrap .txt { white-space: normal; overflow: visible; }
+.tape li.tnote .txt { text-transform: none; letter-spacing: 0; font-family: var(--sans); }
+.tape.wrap ol { justify-content: flex-start; }
+.tape-running { display: flex; align-items: center; gap: var(--s-2); padding-top: var(--s-2); font-size: var(--t-sm); color: var(--ink-2); }
+.which-book { display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4); border: 1px solid var(--red); background: var(--red-wash); }
+.which-book h3 { color: var(--red); font-size: var(--t-sm); font-stretch: 75%; letter-spacing: 0.06em; text-transform: uppercase; }
+.struck { display: grid; gap: 4px; }
+.struck s { color: var(--muted); text-decoration-color: var(--red); text-decoration-thickness: 1.5px; }
+.publish { display: grid; gap: var(--s-2); padding-top: var(--s-3); border-top: 3px double var(--edge); justify-items: start; }
+.bars-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s-5); }
+@media (max-width: 880px) {
+  .design-grid { grid-template-columns: minmax(0, 1fr); }
+  .request-row { flex-direction: column; align-items: stretch; }
+}

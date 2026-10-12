@@ -137,7 +137,7 @@ export function App() {
           >
             {page === "start" && <Start campaign={campaign} config={config} />}
             {page === "overview" && <Overview campaign={campaign} campaigns={campaigns} onPick={setCampaignId} config={config} onDesign={() => go("design")} />}
-            {page === "design" && config && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
+            {page === "design" && <Design config={config} onPublished={async (id) => { await refresh(); setCampaignId(id); }} />}
             {page === "makers" && <Makers campaign={campaign} />}
             {page === "verify" && <Verify campaign={campaign} config={config} />}
             {page === "claim" && <Claim campaign={campaign} config={config} />}

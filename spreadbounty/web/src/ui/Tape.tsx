@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
+import type { ReactNode } from "react";
 import { EASE_ENTER, T } from "./motion";
 import { makePacer, type TapeLine } from "./pacer";
 
@@ -10,9 +11,9 @@ import { makePacer, type TapeLine } from "./pacer";
 export type { TapeLine };
 export { makePacer };
 
-export function Tape({ lines, rows, empty, label }: { lines: TapeLine[]; rows?: number; empty: string; label: string }) {
+export function Tape({ lines, rows, empty, label, children, wrap }: { lines: TapeLine[]; rows?: number; empty: string; label: string; children?: ReactNode; wrap?: boolean }) {
   return (
-    <div className="tape" style={rows ? { height: `calc(${rows} * var(--tape-line) + 2 * var(--s-4))` } : undefined}>
+    <div className={wrap ? "tape wrap" : "tape"} style={rows ? { height: `calc(${rows} * var(--tape-line) + 2 * var(--s-4))` } : undefined}>
       <ol aria-live="polite" aria-label={label}>
         {lines.length === 0 && <li className="tape-empty">{empty}</li>}
         <AnimatePresence initial={false}>
@@ -20,7 +21,7 @@ export function Tape({ lines, rows, empty, label }: { lines: TapeLine[]; rows?: 
             <motion.li
               key={l.id}
               layout="position"
-              className={l.red ? "red" : undefined}
+              className={[l.red && "red", l.note && "tnote"].filter(Boolean).join(" ") || undefined}
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: T.micro, ease: EASE_ENTER }}
@@ -32,6 +33,7 @@ export function Tape({ lines, rows, empty, label }: { lines: TapeLine[]; rows?: 
           ))}
         </AnimatePresence>
       </ol>
+      {children}
     </div>
   );
 }

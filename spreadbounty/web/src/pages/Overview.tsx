@@ -1,13 +1,17 @@
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { api, fmt, makerName, type Book, type CampaignRow, type Config, type EpochFile, type EpochSummary, type Report } from "../api";
+import { report, type WriterReport } from "../ai/client";
+import { writerLabel } from "../ai/providers";
+import { api, fmt, makerName, type Book, type CampaignRow, type Config, type EpochFile, type EpochSummary } from "../api";
+import { useWriterSettings } from "../ui/ModelDialog";
+import { MarginNote } from "../ui/MarginNote";
 import { Provenance } from "../ui/bits";
 import { PageHead } from "../ui/Schedule";
 import { SourceLabel } from "../ui/SourceLabel";
 import { BookLadder } from "../ui/BookLadder";
 import { DepthChart, Legend, ViewToggle, type DepthPoint } from "../ui/charts";
 
-const reportCache = new Map<string, Report>();
+const reportCache = new Map<string, WriterReport>();
 
 export function Overview({ campaign, campaigns, onPick, config, onDesign }: { campaign: CampaignRow | null; campaigns: CampaignRow[]; onPick: (id: string) => void; config: Config | null; onDesign: () => void }) {
   const [epochs, setEpochs] = useState<EpochSummary[] | null>(null);
@@ -229,15 +233,16 @@ function Payouts({ cur, file, quote }: { cur: EpochSummary; file: EpochFile; quo
 }
 
 function ReportCard({ campaignId, n, config }: { campaignId: string; n: number; config: Config | null }) {
-  const key = `${campaignId}:${n}`;
-  const [r, setR] = useState<Report | null>(reportCache.get(key) ?? null);
+  const writer = useWriterSettings();
+  const key = `${campaignId}:${n}:${writer.provider}:${writer.model}:${writer.baseUrl}`; // a new Writer writes a new report
+  const [r, setR] = useState<WriterReport | null>(reportCache.get(key) ?? null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const run = async () => {
     setBusy(true);
     setErr(null);
     try {
-      const rep = await api.report(campaignId, n);
+      const rep = await report(campaignId, n);
       reportCache.set(key, rep);
       setR(rep);
     } catch (e: any) {
@@ -250,19 +255,19 @@ function ReportCard({ campaignId, n, config }: { campaignId: string; n: number; 
     setR(cached);
     if (!cached) run();
   }, [key]);
-  const who = config?.ai.provider === "off" ? "the template" : config?.ai.model ?? "the model";
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Epoch report</h2>
         <button className="btn ghost small" onClick={run} disabled={busy}>{busy ? "Writing…" : "Rewrite"}</button>
       </div>
-      {busy && !r && <p className="muted row"><span className="spinner" /> Writing with {who}…</p>}
+      {busy && !r && <p className="muted row"><span className="spinner" /> Writing · {writerLabel(writer, config?.ai.model ?? null)}</p>}
       {err && <p className="note bad">{err}</p>}
       {r && (
         <div className="stack" style={{ gap: 12 }}>
           <p className="prose">{r.markdown}</p>
-          <Provenance by={r.ai.writtenBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} />
+          <Provenance by={r.ai.writtenBy} provider={r.ai.provider} model={r.ai.model} attempts={r.ai.groundingAttempts} where={r.ai.where} />
+          {r.ai.notes.map((t) => <MarginNote key={t} tone="red">{t}</MarginNote>)}
           <span className="muted" style={{ fontSize: "0.8rem" }}>Payout root <span className="mono">{fmt.short(r.root)}</span></span>
         </div>
       )}
