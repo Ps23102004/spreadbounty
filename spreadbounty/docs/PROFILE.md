@@ -71,9 +71,7 @@ Upload in this order. Every caption names its data source, because the app shots
 
 ## Team
 
-| Name | Role | Contact |
-|---|---|---|
-| Parth Singh | Solo builder | github.com/Ps23102004 |
+Parth Singh (solo). Contact: github.com/Ps23102004.
 
 ## Story fields (if the form asks for them)
 
