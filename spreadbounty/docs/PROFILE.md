@@ -73,10 +73,7 @@ Upload in this order. Every caption names its data source, because the app shots
 
 | Name | Role | Contact |
 |---|---|---|
-| Parth Singh | Team member | github.com/Ps23102004 |
-| Amandeep Kaushik | Team member | via Parth Singh |
-| Aashna Tyagi | Team member | via Parth Singh |
-| Bence Szilagyi | Team member | via Parth Singh |
+| Parth Singh | Solo builder | github.com/Ps23102004 |
 
 ## Story fields (if the form asks for them)
 

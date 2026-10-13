@@ -4,30 +4,40 @@ The portal asks: **introduce yourself, the problem, why you're building it.** Th
 
 **Length:** 237 spoken words plus your two bracketed lines, about 270 in all: roughly 1:55 at a calm pace. If you run over, cut your bracketed lines first. Record it in one take, then trim.
 
-## Five questions only you can answer (two minutes of thinking)
+## One question only you can answer
 
-1. Who are you, in one breath? (Course and school, or what you do. One line.)
-2. What got you interested in markets or on-chain trading? One true sentence, not a slogan.
-3. What is the moment that made this problem real for you? (The empty AUSD/USDC book is a good one: it is real, dated, and checkable.)
-4. How do you want to describe the AI help? (The repo says AI coding assistance, supervised by you, all code reviewed and tested. Say it in your own words.)
-5. What do you want from Metropolis? (The honest default below: a one-week pilot with a sponsor.)
+Why did this problem catch you? One honest sentence, in your own words, goes in the 0:40 block. Everything else below is already written from what is true and checkable.
 
-## The script
+## The script (about 310 words: read briskly, roughly 2:05; cut the bracketed line and the reviewers line to get under 2:00)
 
-**0:00 to 0:15. Who I am**
-"Hi, I'm Parth Singh. I'm [what you study or do, and where]. I built Spreadbounty for Metropolis on Monad, working with AI coding agents that I supervised."
+**0:00. Who I am**
+"Hey, I'm Parth Singh. I'm a computer science student in Indianapolis, originally from India, and I'm doing this one solo. I like building games, AI tools, and lately things on-chain. This is Spreadbounty, my Metropolis project on Monad."
 
-**0:15 to 0:45. The problem**
-"Kuru is Monad's on-chain order book. Some of its books are thin or empty. When we checked on October 11, the AUSD/USDC book, an official Kuru market, had no bids and no asks at all. Projects that want depth pay market makers through private deals, and they can't check what they got for the money."
+**0:17. The problem**
+"Here's the problem. Kuru is Monad's on-chain order book, and a lot of its books are thin. On October 11 I checked the AUSD/USDC book, an official Kuru market, and it had no bids and no asks. Projects pay market makers to fix that through private deals, and they can't check what they actually got."
 
-**0:45 to 1:10. Why I'm building it**
-"[One or two true sentences on why this matters to you.] What bothered us is simple: if someone pays for depth, anyone should be able to check the payout. Spreadbounty pays any maker who rests tight bids and asks on both sides. It scores them from Kuru's public logs, and each epoch ends in a Merkle root that anyone can recompute."
+**0:40. Why I'm building it**
+"[One honest sentence on why this caught you.] What bugged me is simple: if you pay for liquidity, you should be able to check the payout yourself. Nobody should have to take my word for it."
 
-**1:10 to 1:40. The proof, on screen**
-"Here's the check. One click, and my browser rebuilds the book from the public logs, and says: verified. Now I tamper with one payout by a single token. The Merkle root still looks valid on its own. I recompute: exception, do not pay."
+**0:56. What it does, and the proof**
+"So Spreadbounty pays any maker who rests tight bids and asks on both sides, scored from Kuru's public logs. Watch this: one click, my browser rebuilds the book and says verified. Now I change one payout by a single token. The root still looks valid, but recomputing says: exception, do not pay."
 
-**1:40 to 2:00. Honest status and close**
-"What's done: 94 automated checks pass, and a read-only replay on Monad mainnet matched 8 of 8 live orders against the contract. What's not done: live orders and a live epoch on Monad. They're next, and what we're asking for is a one-week pilot with a sponsor. Spreadbounty: depth you can verify, on Monad."
+**1:20. Open source, and what's different about the AI**
+"It's open source, MIT. The claim contract is 1inch's, unmodified. The scoring is Polymarket's formula. The app runs on React, ethers and Vite, and local models run through Ollama. Here's what's different about the AI: I built this with AI agents, but no model ever decides who gets paid. A test fails the build if it tries. Models only read the sponsor's sentence and explain numbers the code computed, and any invented number gets thrown out. Two independent AI reviewers went through it and found real bugs, and I fixed them."
+
+**1:48. Honest status and close**
+"Status, honestly: 94 tests pass, and a read-only replay on Monad matched 8 of 8 live orders. Live orders aren't done yet, and I'm asking for a one-week pilot. Spreadbounty: depth you can verify."
+
+## Where each claim comes from
+
+| You say | Proof in the repo |
+|---|---|
+| MIT, open source | `LICENSE` |
+| Claim contract is 1inch's, unmodified | `spreadbounty/contracts/vendor`, sha256-checked in `test:drop` |
+| Scoring is Polymarket's formula | `src/core/score.ts` doc comment, `docs/ARCHITECTURE.md` |
+| React, ethers, Vite; local models via Ollama | `spreadbounty/package.json`, `docs/AI-RUNS.md` |
+| No model decides a payout; a test fails the build | `test/boundary.test.ts`, grounding guard in `src/ai/grounding.ts` |
+| Two independent AI reviewers found real bugs | `plans/JUDGE-RUBRIC.md`, commit history (verifier now compares every committed field) |
 
 ## What to show while you talk
 
@@ -41,7 +51,7 @@ The portal asks: **introduce yourself, the problem, why you're building it.** Th
 
 Every shot keeps its own label on screen (LIVE read-only, DEMO DATA, or SHADOW CAMPAIGN). Do not cut a demo-data shot so it looks like mainnet.
 
-## Claims you can say, and the proof behind each
+## More claims you can say, and the proof behind each
 
 | You say | Backed by |
 |---|---|
