@@ -42,6 +42,13 @@ How it works, with a diagram and the trust model: [docs/ARCHITECTURE.md](spreadb
 
 Also in dark mode and on phones: [`docs/screenshots/redesign`](spreadbounty/docs/screenshots/redesign).
 
+## For judges: nothing to install, no keys
+
+- **Easiest:** open the live demo (link at the top). No account, no wallet, no model, no API key. Press **Recompute epoch 2 here**, then tick **Forge a payout** and press it again.
+- **AI is optional.** With no model, the app reads a sponsor's sentence with plain rules and writes its text from templates, so every page works. A model (the app was tried with Gemma 4 through Ollama, and Claude) only improves the wording and never decides a payout.
+- **Run it yourself:** `cd spreadbounty/spreadbounty && npm install && npm start`, then open http://localhost:8787. It needs only Node 22. It uses the bundled, labelled synthetic dataset.
+- **Want a model anyway?** Use the **Writer** chip in the top bar: pick Local (Ollama) or paste your own Anthropic, OpenAI or Gemini key. Keys stay in your browser and are never sent to our server.
+
 ## Try it in two minutes
 
 ```bash
