@@ -7,7 +7,8 @@ WORKDIR /app
 
 # Deps first, for layer caching
 COPY spreadbounty/package.json spreadbounty/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# --ignore-scripts: test-only deps (ganache) compile native modules, and node:22-slim has no compiler. The site does not need them.
+RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # App source (server + web + scoring core)
 COPY spreadbounty/ ./
