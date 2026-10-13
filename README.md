@@ -10,6 +10,8 @@ Built for **Metropolis (Monad)**, Track 1: Onchain Finance & Trading. By Parth S
 
 ![A real click-through of the app](spreadbounty/docs/media/walkthrough.gif)
 
+**Live demo:** https://spreadbounty.onrender.com (labelled synthetic data; the free host sleeps when idle, so the first load can take about a minute)
+
 [Click-through (video)](spreadbounty/docs/media/walkthrough.mp4) · [2-minute demo](spreadbounty/docs/media/spreadbounty-demo-2m.mp4) · [20-second launch video](spreadbounty/docs/media/spreadbounty-launch-20s.mp4)
 
 ## The problem
