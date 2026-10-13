@@ -7,8 +7,9 @@ WORKDIR /app
 
 # Deps first, for layer caching
 COPY spreadbounty/package.json spreadbounty/package-lock.json ./
-# --ignore-scripts: test-only deps (ganache) compile native modules, and node:22-slim has no compiler. The site does not need them.
-RUN npm ci --no-audit --no-fund --ignore-scripts
+# Test-only ganache compiles native modules (no compiler in node:22-slim) and ships a nested macOS-only fsevents that Linux's npm
+# rejects with EBADPLATFORM. The site needs neither, so skip install scripts and the platform check.
+RUN npm ci --no-audit --no-fund --ignore-scripts --force
 
 # App source (server + web + scoring core)
 COPY spreadbounty/ ./
