@@ -1,0 +1,17 @@
+# One-click deploy: https://render.com/deploy?repo=https://github.com/Ps23102004/spreadbounty
+# Free plan: the service sleeps after ~15 min idle and takes about a minute to wake on the next visit.
+services:
+  - type: web
+    name: spreadbounty
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: PUBLIC_DEMO        # the labelled synthetic demo, tighter caps, server-side AI off
+        value: "1"
+      - key: TRUST_PROXY        # one proxy (Render's) sits in front
+        value: "1"
+      - key: ALLOWED_HOSTS      # host names a wallet sign-in message may name; add yours if the URL differs
+        value: spreadbounty.onrender.com,localhost
+      - key: SESSION_SECRET
+        generateValue: true
